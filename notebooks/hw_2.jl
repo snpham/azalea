@@ -24,13 +24,29 @@ begin
 	sma_moon_wrtearth = 384400 # km
 	ecc_moon_wrtearth = 0.05490
 	
-	
 	# GM [km3/s2]
 	gm_sun = 132712440041.93938
 	gm_earth = 398600.435436
 	gm_moon = 4902.800066
 end
 
+
+# ╔═╡ 8db8b95a-8b24-4c67-a059-576e6f410abe
+md"""
+## Homework 2 - Son Pham
+"""
+
+# ╔═╡ fb59bdca-9608-44ec-aae4-acb28576a7a4
+html"""
+<style>
+	main {
+		margin: 0 auto;
+		max-width: 2000px;
+    	padding-left: max(100px, 8%);
+    	padding-right: max(100px, 8%);
+	}
+</style>
+"""
 
 # ╔═╡ afeedfcb-96ac-4c31-b070-a16c078e077d
 begin
@@ -56,13 +72,22 @@ md"""
 ##### 1a) Write a script to compute the location of each equilibrium point in the CR3BP. In your writeup, discuss the configuration of your script, and copy the text of the script to the end of your submission for this subproblem.
 """
 
+# ╔═╡ 99e4b8c8-8e50-4ebe-8737-ce4dbaf20d3e
+md"""
+##### 1a writeup:
+The pseudo-potential was used to determine the equilibrium points. To determine the collinear points, y and z is assumed zero, leaving only the derivative of the pseudo potential function U with respect to x to be computed. The equation, Ux, is set to zero and the root is computed using the find_zeros() function in Julia. The three roots output are the collinear points within the system. To find the triangular points L4, L5, the geometry for an equilateral triangle was used to determine the constant x and y values for the given system.
+"""
+
 # ╔═╡ beb9d7f6-cca9-4e71-a1ae-7026f8fe75ee
 function eq_pts(μ)
 
+	# Ux
 	f(x) = x - (1-μ)*(x+μ)/(abs(x+μ))^3 - μ*(x-1+μ)/(abs(x-1+μ))^3
-	
+
+	# find roots
 	L3x, _, L1x, _, L2x = find_zeros(f, -2, 2)
 
+	# equilibrium points
 	L1 = (L1x, 0)
 	L2 = (L2x, 0)
 	L3 = (L3x, 0)
@@ -73,18 +98,47 @@ function eq_pts(μ)
 	
 end
 
-
 # ╔═╡ 54d4bc16-c0a3-47d8-9f5a-e67c0f1c7973
 md"""
 ##### 1b) Create a table listing the locations and associated Jacobi constants for each equilibrium point in the Earth-Moon CR3BP. (Optional addition: consider comparing the locations you calculate in this problem to your predictions from HW 1!)
 """
 
+# ╔═╡ afe3715a-05d1-4a9d-98f6-d91a324529c6
+function pseudopotential(μ, x, y, rtn_jacobi::Bool=false)
+
+    # distances of primaries to third body
+    r1 = sqrt((x+μ)^2 + y^2)
+    r2 = sqrt((x-1+μ)^2 + y^2)
+    
+    # pseudo-potential function
+    U = 1/2*(x^2 + y^2) + (1-μ)/r1 + μ/r2
+
+	if rtn_jacobi == true
+		return 2*U
+	end
+	
+    return U
+    
+end
+
 # ╔═╡ 3c5250ac-d8b9-4ece-b982-397157ffe8f4
 begin
+	# getting equilibrium points
 	L_pts_em = eq_pts(μ_em);
+
+	# computing jacobi constants
+	Cs_em = [pseudopotential(μ_em, xi, yi, true) for (xi, yi) in values(L_pts_em)]
+
+	# copying over hw-1's data
+	Ls_frm_hw1 = [(0.83, 0), (1.15, 0), (-1.00, 0), (0.48, 0.86), (0.48, -0.86)]
+
+	# generating table
 	df_em = DataFrame(L_Point_em=[i for i in keys(L_pts_em)], 
 		                x_nd=[i[1] for i in values(L_pts_em)],
-				        y_nd=[i[2] for i in values(L_pts_em)], μ=μ_em)
+				        y_nd=[i[2] for i in values(L_pts_em)], 
+		                jacobi=Cs_em, μ=μ_em, 
+		                x_nd_hw1=[i[1] for i in values(Ls_frm_hw1)],
+				        y_nd_hw1=[i[2] for i in values(Ls_frm_hw1)])
 	
 end
 
@@ -108,16 +162,16 @@ end
 
 # ╔═╡ 6c78f559-9948-4f9b-9230-8865b8489900
 begin
-	μ_3 = 0.05
+	μ_3 = 0.10
 	L_pts_3 = eq_pts(μ_3);
 	df_3 = DataFrame(L_Point=[i for i in keys(L_pts_3)], 
 		           x_nd=[i[1] for i in values(L_pts_3)],
-				   y_nd=[i[2] for i in values(L_pts_3)], μ=μ_3)
+				   y_nd=[i[2] for i in values(L_pts_3)], μ_arbitrary=μ_3)
 end
 
 # ╔═╡ 610d728a-ee78-4015-ad68-5629b3c4d38c
 md"""
-##### Problem 1c writeup: 
+##### 1c writeup: 
 
 Two tables were generated with the first using the sun-earth μ value, while the second using an arbitrary μ of 0.05. Comparing the two tables above with the original table for the earth-moon system, as μ increases, the relative position of the collinear equilibrium point L2 increases while points L1, L3 decreases. For the points L4, L5, the x-axis value decreases for higher μ's and increases if μ is lower, while the y-axis value remains constant regardless of μ. This makes sense for the y-values, since the distance between the primaries, r1, r2 = 1, their positions create an equilateral triangle with x dependent on μ and y determined by the equilateral triangle formula with a constant side value of r=1.
 """
@@ -133,8 +187,8 @@ md"""
 function compute_lambdas(x, y, z, μ, compute_eigvec::Bool=false)
 		
 	# positions of primaries to third body
-	r1 = ((x+μ)^2 + y^2 + z^2)^0.5
-	r2 = ((x-1+μ)^2 + y^2 + z^2)^0.5
+	r1 = sqrt((x+μ)^2 + y^2 + z^2)
+	r2 = sqrt((x-1+μ)^2 + y^2 + z^2)
 
 	# psuedo-potential 2nd derivatives
 	# at eq. pts., U_xz, U_zx, U_yz, U-zy = 0
@@ -152,10 +206,10 @@ function compute_lambdas(x, y, z, μ, compute_eigvec::Bool=false)
 
 	## in-plane modes
 	# A matrix
-	A = [0   0    1  0;
-	     0   0    0  1;
-	     Uxx Uxy  0  2;
-	     Uyx Uyy -2  0]
+	A = [0    0     1   0;
+ 	     0    0     0   1;
+	     Uxx  Uxy   0   2;
+	     Uyx  Uyy  -2   0]
 
 	# compute eigenvalues
 	eigs = eigvals(A)
@@ -165,8 +219,10 @@ function compute_lambdas(x, y, z, μ, compute_eigvec::Bool=false)
 	λ_5 = sqrt(abs(Uzz))im
 	λ_6 = -sqrt(abs(Uzz))im
 
+	# if want to compute eigenvectors instead
 	if compute_eigvec == true
-		return [convert(Complex{Float16}, eig) for eig in eigvecs(A)]
+		eigvs = [convert(Complex{Float16}, eig) for eig in eigvecs(A)]
+		return eigvs
 	end
 	
 	return Dict{String,Any}(
@@ -240,7 +296,7 @@ end
 md"""
 ##### Problem 2 writeup: 
 
-note: for the eigenvalue tables above, λi\_in = ith in-plane eigenvalue, λi_out = ith out-of-plane eigenvalues. For L1-L3, there exists two pair real value terms and two imaginary terms, each containing one positive and one negative. This is due to the characteristic equation and solving for the square of eigenvalue terms from the A matrix.
+note: for the eigenvalue tables above, λi\_in = ith in-plane eigenvalue, λi_out = ith out-of-plane eigenvalues. For L1-L3, there exists two pair real value terms and two imaginary terms, each containing one positive and one negative. This is due to the characteristic equation with complex conjugate solutions of eigenvalue terms from the A matrix.
 """
 
 # ╔═╡ df6267a8-c1a4-4483-b245-174c6e9663ef
@@ -271,7 +327,7 @@ begin
 		append!(df_em_L4,df_i)
 	end
 
-	# finding the critical value and clipping the table
+	# finding the critical value and clipping the table to critical value row
 	real_idxs_L4 = findall((real(df_em_L4.λ1_in) .> 0))
 	df_em_L4[real_idxs_L4[1]-4:real_idxs_L4[1]+4, :]
 	
@@ -297,7 +353,7 @@ begin
 		append!(df_em_L5,df_i)
 	end
 	
-	# finding the critical value and clipping the table
+	# finding the critical value and clipping the table to critical value row
 	real_idxs_L5 = findall((real(df_em_L5.λ1_in) .> 0))
 	df_em_L5[real_idxs_L5[1]-4:real_idxs_L5[1]+4, :]
 
@@ -427,31 +483,30 @@ begin
 	η₀_4c = 0
 	
 	# getting λ3
-	μ_em_4c = μ_em
-	L1_em_eigs = df_eigs_em[1,:]
+	L_pt_4c = 1
+	L1_em_eigs = df_eigs_em[L_pt_4c,:]
 	λ3_4c = imag(L1_em_eigs.λ3_in)
 
 	# getting Uxx
-	x_4c = df_em.x_nd[1]
-	y_4c = df_em.y_nd[1]
+	x_4c = df_em.x_nd[L_pt_4c]
+	y_4c = df_em.y_nd[L_pt_4c]
 	z_4c = 0	
-	u_2partials_4c = Uii_matrix(x_4c, y_4c, z_4c, μ_em_4c)
+	u_2partials_4c = Uii_matrix(x_4c, y_4c, z_4c, μ_em)
 	Uxx_4c = u_2partials_4c[1]
 
 	# getting α3
 	α3_4c = αi(λ3_4c, Uxx_4c)
 
 	# getting η̇₀ and ξ̇₀
-	η̇₀_4c = η̇₀(α3_4c, λ3_4c, ξ₀_4c)
 	ξ̇₀_4c = ξ̇₀(α3_4c, λ3_4c, η₀_4c)
-	
+	η̇₀_4c = η̇₀(α3_4c, λ3_4c, ξ₀_4c)
+
 end
 
 # ╔═╡ 82e8d792-3c14-458c-b329-59d39718d8ba
 function linearized_eom(dx,x,params,t)
 
 	# extracting parameters from array
-	x_eq = params[3]
 	mu = params[1]
 	U_mat = params[2]
 	Uxx = U_mat[1]
@@ -470,16 +525,16 @@ end
 
 # ╔═╡ 8dfc1635-378d-40a6-83bb-4bf6815e9874
 begin
-    # initial condition with variation
+    # initial condition for linearized system
     x_bar_4c = [ξ₀_4c, η₀_4c, ξ̇₀_4c, η̇₀_4c]
     
     # 1 period
-    tspan_4c = (0.0,2*pi/λ3_4c)
+    tspan_4c = (0.0, 2*pi/λ3_4c)
 
     # setting up solver
-	params = [μ_em_4c, u_2partials_4c, [x_4c, y_4c, z_4c]]
+	params = [μ_em, u_2partials_4c]
     prob_4c = ODEProblem(linearized_eom, x_bar_4c, tspan_4c, params)
-    sol_4c = solve(prob_4c, Vern7(), reltol=1e-12, abstol=1e-12, maxiters=1e7)
+    sol_4c = solve(prob_4c, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e7)
 
     # 2d plot in earth-moon rotating frame
     plot(sol_4c[1,:], sol_4c[2,:], label="linearized trajectory", 
@@ -517,9 +572,9 @@ begin
 
     # setting up solver
     prob_4c_nl = ODEProblem(crtbp, x_bar_4c_nl, tspan_4c_nl, μ_em)
-    sol_4c_nl = solve(prob_4c_nl, Vern7(), reltol=1e-12, abstol=1e-12, maxiters=1e6)
+    sol_4c_nl = solve(prob_4c_nl, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e6)
     
-    # 3d plot in earth-moon rotating frame
+    # plot in earth-moon rotating frame
     plot!(sol_4c_nl[1,:].-x_4c, sol_4c_nl[2,:], label="nonlinear trajectory", 
 		title="(rotating frame)", xlabel="x [-]", ylabel="y [-]", 
 		aspect_ratio = 1)
@@ -529,32 +584,240 @@ end
 # ╔═╡ 255efa49-81e8-4d71-8a27-5a338e0542c6
 md"""
 ##### Problem 4c writeup: 
-The negative ξ₀ deviation causes the trajectory to leave the vicinity of L1. The variation causes a compounded relative positional state differences between the two trajectories. 
+The negative ξ₀ deviation causes the trajectory to leave the vicinity of L1. The variation causes a compounded relative positional state differences between the two trajectories. Since the L1 point is unstable, the perturbation forces the trajectory to leave the vicinity of the equilibrium point.
 """
 
 # ╔═╡ e20c093e-40e6-47c8-9b3e-a3390cd37caf
 md"""
-##### 4d. Let’s try generating an initial guess for an L1 Lyapunov orbit using an alternate approach: using the eigenvectors associated with the oscillatory modes in the linear system. Calculate and report the complex eigenvectors associated with (𝜆(, 𝜆$); the two eigenvectors should be a complex conjugate pair. Calculate and report the real and imaginary components of these complex eigenvectors; these components supply us with a set of real basis vectors that describe the associated eigenspace. Discuss the connection between the real and/or imaginary components of these eigenvectors to the process of selecting an initial variation to generate a periodic path relative to L1 in the linearized system. Also compare the real and/or imaginary components of these eigenvectors to the initial variation you calculated in part c).
+##### 4d. Let’s try generating an initial guess for an L1 Lyapunov orbit using an alternate approach: using the eigenvectors associated with the oscillatory modes in the linear system. Calculate and report the complex eigenvectors associated with (𝜆3, 𝜆4); the two eigenvectors should be a complex conjugate pair. Calculate and report the real and imaginary components of these complex eigenvectors; these components supply us with a set of real basis vectors that describe the associated eigenspace. Discuss the connection between the real and/or imaginary components of these eigenvectors to the process of selecting an initial variation to generate a periodic path relative to L1 in the linearized system. Also compare the real and/or imaginary components of these eigenvectors to the initial variation you calculated in part c).
 """
 
 # ╔═╡ 339c45cf-5093-4887-8a89-308c46e29cb1
 begin
 
-	L1_em_eigs_4d = df_eigs_em[1,:]
-	λ3_4d = imag(L1_em_eigs.λ3_in)
-	λ4_4d = imag(L1_em_eigs.λ4_in)
-	println("λ3: ", λ3_4d)
-	println("λ4: ", λ4_4d)
+	L_pt_4d = 1
+	eigvs_4d = compute_lambdas(df_em.x_nd[L_pt_4d], df_em.y_nd[L_pt_4d], 0, μ_em, true)
+	eigv_λ3_4d = eigvs_4d[1:4, 3]
+	eigv_λ4_4d = eigvs_4d[1:4, 2]
 
-	eigvs_4d = compute_lambdas(df_em.x_nd[1], df_em.y_nd[1], 0, μ_em, true)
-	# println("eigenvectors: ", eigvs_4d)
-
+	df_eigv_4d = DataFrame("λ3_eigvec_L1"=> eigv_λ3_4d, "λ4_eigvec_L1"=> eigv_λ4_4d)
+	
 end
 
 # ╔═╡ 3ec8ef9a-1191-48cf-a1bc-71f62caf8037
 md"""
 ##### 4d writeup:
-Imaginary values for the in-plane eigenvalue corresponds to the oscillatory mode pair and eigenvalues with only real components determines the stability mode of the value in the nonlinear system, with positive values being unstable. If the eigenvalue contains an imaginary value, then it is marginally stable and further analysis is needed to determine its stability.
+Imaginary values for the in-plane eigenvalue corresponds to the oscillatory mode pair and eigenvalues with only real components determines the stability mode of the value in the nonlinear system, with positive values being unstable. If the eigenvalue contains an imaginary value, then it is marginally stable and further analysis is needed to determine its stability. The eigenvalues are used in the linerized variational equations to compute possible initial conditions/guesses that can generate Lyapunov orbits (by selecting the values that lie in the center eigenspace, where eigenvalues are purely imaginary, of the equilibrium point of interest). 
+- Comparing with the variations computed from 4c: 
+- [ξ₀, η₀, ξ̇₀, η̇₀] = [0.001, 0.0, -0.0, 0.00292299]
+"""
+
+# ╔═╡ d6ce2609-0f49-4e81-a739-61d732faf063
+md"""
+### Problem 5
+
+##### 5a. Calculate the eigenvalues and eigenvectors of the A2D matrix (defined in class) associated with the in-plane variational equations, formulated relative to L4, in the Earth-Moon system.
+"""
+
+# ╔═╡ 0a415f9c-2297-4bfb-8d2c-43c05d1518d1
+begin
+	Lpt_5a = 4
+	eigvecs_5a = compute_lambdas(df_em.x_nd[Lpt_5a], df_em.y_nd[Lpt_5a], 
+		0, μ_em, true)
+	eigv_λ3_5a = eigvecs_5a[1:4, 3]
+	eigv_λ4_5a = eigvecs_5a[1:4, 2]
+
+	df_eigv_5a = DataFrame("λ1_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 4], 
+						   "λ2_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 1], 
+						   "λ3_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 3], 
+					       "λ4_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 2])
+end
+
+# ╔═╡ 025dd87d-7a7c-461a-afcb-25e1f687723d
+begin
+	L4_eigvals_5a = compute_lambdas(df_em.x_nd[Lpt_5a], df_em.y_nd[Lpt_5a], 0, μ_em)
+	
+	df_L4_eigvals_5a = DataFrame(L4_eigvals_5a)
+	df_L4_eigvals_5a = select!(df_L4_eigvals_5a, Not([:λ5_out, :λ6_out]))
+end
+
+# ╔═╡ 5d0aa79e-6fbe-4b6b-a7bd-f80b96aa7a42
+md"""
+##### 5b. Use these eigenvalues and eigenvectors to calculate an initial variation that will supply an initial guess for each of: 1) a short period orbit near L4 and 2) a long period orbit near L4. (Hint: an initial guess for a short period orbit is generated by exciting the in-plane oscillatory mode with the shortest period or, equivalently, the highest frequency). Select this initial variation such that the vector of the position components, [𝜉0, 𝜂0], possesses a magnitude of 0.02 nondimensional units.
+"""
+
+# ╔═╡ 3a49fc54-f15c-4dad-8c18-de512c98cc90
+begin
+	## short period
+	
+	# initial conditions
+	# mag2 = 0.0004
+	ξ₀_5b = 0.012
+	η₀_5b = sqrt(0.0004 - ξ₀_5b^2)
+
+	# getting U matrix
+	x_5b = df_em.x_nd[Lpt_5a]
+	y_5b = df_em.y_nd[Lpt_5a]
+	z_5b = 0	
+	u_2partials_5b = Uii_matrix(x_5b, y_5b, z_5b, μ_em)
+	U_mat_5b = u_2partials_5b
+
+	# getting λ3
+	λ3_5b = imag(df_eigv_5a.λ4_eigvec_L4)[3]
+	
+	# getting α3
+	α3_5b = αi(λ3_5b, U_mat_5b[1])
+
+	# getting η̇₀ and ξ̇₀
+	ξ̇₀_5b = ξ̇₀(α3_5b, λ3_5b, η₀_5b)
+	η̇₀_5b = η̇₀(α3_5b, λ3_5b, ξ₀_5b)
+
+	println("initial variation (short-period)")
+	println("ξ₀: ", ξ₀_5b)
+	println("η₀: ", η₀_5b)
+	println("ξ̇₀: ", ξ̇₀_5b)
+	println("η̇₀: ", η̇₀_5b)
+	println()
+	
+	## long period
+	# getting λ3
+	λ3_5bl = imag(df_eigv_5a.λ3_eigvec_L4)[3]
+
+	# getting α3
+	α3_5bl = αi(λ3_5bl, U_mat_5b[1])
+
+	# getting η̇₀ and ξ̇₀
+	ξ̇₀_5bl = ξ̇₀(α3_5bl, λ3_5bl, η₀_5b)
+	η̇₀_5bl = η̇₀(α3_5bl, λ3_5bl, ξ₀_5b)
+
+	println("initial variation (long-period)")
+	println("ξ₀: ", ξ₀_5b)
+	println("η₀: ", η₀_5b)
+	println("ξ̇₀: ", ξ̇₀_5bl)
+	println("η̇₀: ", η̇₀_5bl)
+	println()
+end
+
+# ╔═╡ e77192f2-3e24-4b5f-b18f-a2fd1e1168ff
+md"""
+##### 5c. In the linearized system, propagate these initial variations for one revolution around the equilibrium point. (Hint: Recall that for an oscillatory mode with eigenvalue 𝜆 = 𝑖𝜔, the period of oscillation is 𝑃 = 2𝜋/𝜔.) Then, calculate the associated initial state vectors in the rotating frame and relative to the barycenter as 𝑥̅) = [𝑥, + 𝜉0, 𝑦, + 𝜂0, 𝑧,, 𝑥̇, + 𝜉̇0, 𝑦̇, + 𝜂̇0, 𝑧̇, ]. Propagate these initial conditions for the same time interval but in the nonlinear CR3BP. For each type of orbit, plot the two trajectories associated with the same initial variation on the same figure and discuss the difference between them; plot the trajectories associated with short period and long period motion on separate figures.
+"""
+
+# ╔═╡ 9297c633-5824-49b0-858e-7edbfec4bacc
+begin
+	## short period
+	
+	# initial condition with variation
+    x_bar_5c = [ξ₀_5b, η₀_5b, ξ̇₀_5b, η̇₀_5b]
+    
+    # 1 period
+    tspan_5c = (0.0, 2*pi/λ3_5b)
+
+    # setting up solver
+	params_5c = [μ_em, u_2partials_5b]
+    prob_5c = ODEProblem(linearized_eom, x_bar_5c, tspan_5c, params_5c)
+    sol_5c = solve(prob_5c, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e7)
+
+    # 2d plot in earth-moon rotating frame
+    plot(sol_5c[1,:], sol_5c[2,:], label="linearized trajectory - short period", 
+		title="(short-period linearized)", xlabel="ξ [-]", ylabel="η [-]", aspect_ratio = 1)
+    
+    # adding L4
+    scatter!([0],[0], color="red", markersize = 4, label="L4", markershape=:diamond)
+    
+	# adding final state
+	scatter!([last(sol_5c)[1]],[last(sol_5c)[2]], color="green", 
+		markersize = 3, label="final_state_linearized", markershape=:circle)
+	
+end
+
+# ╔═╡ 57512a0e-fd6f-494e-8366-35c4e4692d73
+begin
+	## short period nonlinear
+	
+    # initial condition with variation in nonlinear crtbp
+    x_bar_5c_nl = [x_5b+ξ₀_5b, y_5b+η₀_5b, 0, ξ̇₀_5b, η̇₀_5b, 0]
+
+    # 1 period
+    tspan_5c_nl = tspan_5c
+
+    # setting up solver
+    prob_5c_nl = ODEProblem(crtbp, x_bar_5c_nl, tspan_5c_nl, μ_em)
+    sol_5c_nl = solve(prob_5c_nl, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e6)
+    
+    # 3d plot in earth-moon rotating frame
+    plot!(sol_5c_nl[1,:].-x_5b, sol_5c_nl[2,:].-y_5b, label="nonlinear trajectory", 
+		title="(short-period combined)", xlabel="x [-]", ylabel="y [-]", 
+		aspect_ratio = 1)
+
+	# adding final state
+	scatter!([last(sol_5c_nl)[1]-x_5b],[last(sol_5c_nl)[2]-y_5b], 
+		color="orange", markersize = 3, label="final_state_nonlinear", markershape=:circle)
+	
+end
+
+# ╔═╡ 705712ed-84af-4155-a413-b29350f53972
+md"""
+##### 5c-1 writeup:
+The above plot shows the short period orbit computed from the linearized variations given above plus the nonlinear CRTBP orbit perturbated by the variation. The nonlinear trajectory appears to deviate away from the equilibrium point while the linearized trajectory is returning (or oscillating) at the equilibrium point. The two trajectories are similar at the initially but exponentially deviates from each other.
+"""
+
+# ╔═╡ a4f7e5f8-4d3d-4df0-afe5-b3f29b2ee7ac
+begin
+	## long period
+	
+	# initial condition with variation
+    x_bar_5cl = [ξ₀_5b, η₀_5b, ξ̇₀_5bl, η̇₀_5bl]
+    
+    # 1 period
+    tspan_5cl = (0.0, 2*pi/λ3_5bl)
+
+    # setting up solver
+    prob_5cl = ODEProblem(linearized_eom, x_bar_5cl, tspan_5cl, params_5c)
+    sol_5cl = solve(prob_5cl, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e7)
+
+    # 2d plot in earth-moon rotating frame
+    plot(sol_5cl[1,:], sol_5cl[2,:], label="linearized trajectory - long period", 
+		title="(long-period linearized)", xlabel="ξ [-]", ylabel="η [-]", aspect_ratio = 1)
+    
+    # adding L1
+    scatter!([0],[0], color="red", markersize = 4, label="L4", markershape=:diamond)
+
+	# adding final state
+	scatter!([last(sol_5cl)[1]],[last(sol_5cl)[2]], color="green", 
+		markersize = 3, label="final_state_linearized", markershape=:circle)
+end
+
+# ╔═╡ 52acb5d7-0672-4b41-af31-315e3fc84679
+begin
+	## long period nonlinear
+	
+    # initial condition with variation in nonlinear crtbp
+    x_bar_5cl_nl = [x_5b+ξ₀_5b, y_5b+η₀_5b, 0, ξ̇₀_5bl, η̇₀_5bl, 0]
+
+    # 1 period
+    tspan_5cl_nl = tspan_5c
+
+    # setting up solver
+    prob_5cl_nl = ODEProblem(crtbp, x_bar_5cl_nl, tspan_5cl_nl, μ_em)
+    sol_5cl_nl = solve(prob_5cl_nl, Vern7(), 
+		reltol=1e-14, abstol=1e-14, maxiters=1e6)
+    
+    # 3d plot in earth-moon rotating frame
+    plot!(sol_5cl_nl[1,:].-x_5b, sol_5cl_nl[2,:].-y_5b, 
+		label="nonlinear trajectory", title="(long-period combined)", xlabel="x [-]", ylabel="y [-]", aspect_ratio = 1)
+
+	# adding final state
+	scatter!([last(sol_5cl_nl)[1]-x_5b],[last(sol_5cl_nl)[2]-y_5b], 
+		color="orange", markersize = 3, label="final_state_nonlinear", markershape=:circle)
+
+	
+end
+
+# ╔═╡ a3ffdd59-4649-403a-bcfe-81af49c50b23
+md"""
+##### 5c-2 writeup:
+The above plot shows the long-period with the same initial positional variations. Similar to the short-period trajectories, the two trajectories in this plot matches initially, but exponentially deviates as the trajectory is propagated. 
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2359,15 +2622,19 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
+# ╟─8db8b95a-8b24-4c67-a059-576e6f410abe
 # ╠═4bb2ee6a-33b0-11ed-332d-0d8beade3446
+# ╠═fb59bdca-9608-44ec-aae4-acb28576a7a4
 # ╠═afeedfcb-96ac-4c31-b070-a16c078e077d
 # ╟─f1f219be-4830-4cb8-b943-b829487683b1
+# ╟─99e4b8c8-8e50-4ebe-8737-ce4dbaf20d3e
 # ╠═beb9d7f6-cca9-4e71-a1ae-7026f8fe75ee
 # ╟─54d4bc16-c0a3-47d8-9f5a-e67c0f1c7973
+# ╠═afe3715a-05d1-4a9d-98f6-d91a324529c6
 # ╠═3c5250ac-d8b9-4ece-b982-397157ffe8f4
 # ╟─e6bb1be6-070d-4bd2-9928-eadc59d4db74
 # ╠═e0c4d3f0-2d88-48f7-90d6-6ced5446735e
-# ╟─6c78f559-9948-4f9b-9230-8865b8489900
+# ╠═6c78f559-9948-4f9b-9230-8865b8489900
 # ╟─610d728a-ee78-4015-ad68-5629b3c4d38c
 # ╟─31ba8f34-593a-48dd-8abb-cda52acfbb4d
 # ╠═c9b1ff21-67b8-4216-b8d3-7950385e1813
@@ -2396,6 +2663,18 @@ version = "1.4.1+0"
 # ╟─255efa49-81e8-4d71-8a27-5a338e0542c6
 # ╟─e20c093e-40e6-47c8-9b3e-a3390cd37caf
 # ╠═339c45cf-5093-4887-8a89-308c46e29cb1
-# ╠═3ec8ef9a-1191-48cf-a1bc-71f62caf8037
+# ╟─3ec8ef9a-1191-48cf-a1bc-71f62caf8037
+# ╟─d6ce2609-0f49-4e81-a739-61d732faf063
+# ╠═0a415f9c-2297-4bfb-8d2c-43c05d1518d1
+# ╠═025dd87d-7a7c-461a-afcb-25e1f687723d
+# ╟─5d0aa79e-6fbe-4b6b-a7bd-f80b96aa7a42
+# ╠═3a49fc54-f15c-4dad-8c18-de512c98cc90
+# ╟─e77192f2-3e24-4b5f-b18f-a2fd1e1168ff
+# ╠═9297c633-5824-49b0-858e-7edbfec4bacc
+# ╠═57512a0e-fd6f-494e-8366-35c4e4692d73
+# ╟─705712ed-84af-4155-a413-b29350f53972
+# ╠═a4f7e5f8-4d3d-4df0-afe5-b3f29b2ee7ac
+# ╠═52acb5d7-0672-4b41-af31-315e3fc84679
+# ╟─a3ffdd59-4649-403a-bcfe-81af49c50b23
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
