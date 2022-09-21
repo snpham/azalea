@@ -39,12 +39,11 @@ md"""
 # ╔═╡ fb59bdca-9608-44ec-aae4-acb28576a7a4
 html"""
 <style>
-	main {
-		margin: 0 auto;
-		max-width: 2000px;
-    	padding-left: max(100px, 8%);
-    	padding-right: max(100px, 8%);
-	}
+body:not(.disable_ui) main {
+	max-width: 95%;
+	margin-right: 0px;
+	align-self: center;
+}
 </style>
 """
 
