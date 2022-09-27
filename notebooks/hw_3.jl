@@ -4,25 +4,14 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-end
-
-# ╔═╡ 4bb2ee6a-33b0-11ed-332d-0d8beade3446
+# ╔═╡ 15d28622-3c30-11ed-1cc3-9d37095ea6ba
 begin
 	using Roots
 	using DataFrames
 	using DifferentialEquations
 	using LinearAlgebra
 	using Plots
-	using Symbolics
-	using ColorVectorSpace, ImageShow, FileIO, ImageIO, PlutoUI, HypertextLiteral
+	using PlutoUI
 	# include("../helpers/constants.jl")
 
 	G_univ = 6.67408e-20 # km3/(kg)
@@ -42,838 +31,196 @@ begin
 	gm_moon = 4902.800066
 end
 
-
-# ╔═╡ 8db8b95a-8b24-4c67-a059-576e6f410abe
+# ╔═╡ a27f868f-7c0e-4c24-b24a-7ffe22891f1e
 md"""
-## Homework 2 - Son Pham
+## Problem 1):
+Write a script to simultaneously numerically integrate the state vector and the state transition matrix along a trajectory in the CR3BP. Copy the text of your script to the end of your submission for this problem. In your writeup, discuss the setup of your script and list the firstorder differential equations that you are integrating. If you have made any significant changes to the numerical integration scheme and/or tolerances used in HW 1 as you work through this problem, please update me on those changes in your discussion.
 """
 
-# ╔═╡ fb59bdca-9608-44ec-aae4-acb28576a7a4
-# html"""
-# <style>
-# body:not(.disable_ui) main {
-# 	max-width: 90%;
-# 	margin-right: 0px;
-# 	align-self: center;
-# }
-# </style>
-# """
+# ╔═╡ 3e8ce332-3106-410a-8915-f96ccafebe2e
 
-# ╔═╡ afeedfcb-96ac-4c31-b070-a16c078e077d
-begin
 
-	# compute masses from GM
-    m_earth = gm_earth / G_univ
-    m_moon = gm_moon / G_univ
-    m_sun = gm_sun / G_univ
-	
-    ## earth-moon
-    # characteristic mass
-    m_star_em = m_earth + m_moon
-    μ_em = m_moon / m_star_em
-    M2_em_nd = μ_em
-    M1_em_nd = 1 - μ_em
+# ╔═╡ 94ca22e9-56fd-43db-a968-099fd4f89675
 
-end
 
-# ╔═╡ f1f219be-4830-4cb8-b943-b829487683b1
+# ╔═╡ 9d3175ee-89f8-454e-977c-11577db9c9fe
 md"""
-### Problem 1
-
-##### 1a) Write a script to compute the location of each equilibrium point in the CR3BP. In your writeup, discuss the configuration of your script, and copy the text of the script to the end of your submission for this subproblem.
+## Problem 2a):
+Write a script to compute a general three-dimensional periodic orbit via single shooting, taking as an input an initial guess for a free variable vector and the system parameters, and outputting the free variable vector corresponding to a solution. For this script, use the approach labeled “General Variable-Time Formulation” in the lecture notes so that you can compute any general periodic orbit. Define, discuss, and justify the free variable and constraint vectors you have formulated and derive the DF matrix in your writeup. Also discuss any additional details related to your numerical corrections procedure, implementation, and any governing parameters. Copy the text of the scripts created and used throughout this entire problem to the end of your submission for this subproblem.
 """
 
-# ╔═╡ 99e4b8c8-8e50-4ebe-8737-ce4dbaf20d3e
+# ╔═╡ 4ee98e63-738e-426e-a9b3-3d2acb166f22
+
+
+# ╔═╡ 7c3718a9-6a84-4448-bd4c-d24e7ebe6e77
+
+
+# ╔═╡ 2e5b3464-d44b-4a93-9fed-92d80138f74c
 md"""
-##### 1a writeup:
-The pseudo-potential was used to determine the equilibrium points. To determine the collinear points, y and z is assumed zero, leaving only the derivative of the pseudo potential function U with respect to x to be computed. The equation, Ux, is set to zero and the root is computed using the find_zeros() function in Julia. The three roots output are the collinear points within the system. To find the triangular points L4, L5, the geometry for an equilateral triangle was used to determine the constant x and y values for the given system.
+## Problem 2b):
+Using the approach from HW 2, use linearization around L1 in the Earth-Moon system to create an initial guess for an L1 Lyapunov orbit. Report the initial guess, discuss why you selected it and comment on whether you think it is a reasonable initial guess. Note: please try to balance selecting this initial guess to be small enough to produce a decent initial guess, but large enough to have some initial discontinuity so that you can see theorrector work over multiple iterations.
 """
 
-# ╔═╡ beb9d7f6-cca9-4e71-a1ae-7026f8fe75ee
-function eq_pts(μ)
+# ╔═╡ f2518679-e5dc-4fa2-85ef-4749d137b0da
 
-	# Ux
-	f(x) = x - (1-μ)*(x+μ)/(abs(x+μ))^3 - μ*(x-1+μ)/(abs(x-1+μ))^3
 
-	# find roots
-	L3x, _, L1x, _, L2x = find_zeros(f, -2, 2)
+# ╔═╡ cf6477f4-a9ae-467c-9ea3-1c97d188295e
 
-	# equilibrium points
-	L1 = (L1x, 0)
-	L2 = (L2x, 0)
-	L3 = (L3x, 0)
-	L4 = (1/2-μ, sqrt(3)/2)
-	L5 = (1/2-μ, -sqrt(3)/2)
-	
-	return Dict("L1" => L1, "L2" => L2, "L3" => L3, "L4" => L4, "L5" => L5)
-	
-end
 
-# ╔═╡ 54d4bc16-c0a3-47d8-9f5a-e67c0f1c7973
+# ╔═╡ ddde1c06-ed1f-4c37-89d2-9a7500b1a029
 md"""
-##### 1b) Create a table listing the locations and associated Jacobi constants for each equilibrium point in the Earth-Moon CR3BP. (Optional addition: consider comparing the locations you calculate in this problem to your predictions from HW 1!)
+## Problem 2c):
+Correct the initial guess and graphically display the norm of the constraint vector at each iteration (I recommend displaying this quantity on a log10 scale for visual clarity). Use this plot to discuss in detail whether you think you implemented your corrections algorithm correctly and whether it was successful.
 """
 
-# ╔═╡ afe3715a-05d1-4a9d-98f6-d91a324529c6
+# ╔═╡ b845ae4b-83c0-48bf-b9a6-bbd6f2f55ae9
 
-function pseudopotential(μ, x, y, rtn_jacobi::Bool=false)
 
-    # distances of primaries to third body
-    r1 = sqrt((x+μ)^2 + y^2)
-    r2 = sqrt((x-1+μ)^2 + y^2)
-    
-    # pseudo-potential function
-    U = 1/2*(x^2 + y^2) + (1-μ)/r1 + μ/r2
+# ╔═╡ 1933a3da-d578-4b4c-86fc-58c4b1c2a666
 
-	if rtn_jacobi == true
-		return 2*U
-	end
-	
-    return U
-    
-end
 
-# ╔═╡ 3c5250ac-d8b9-4ece-b982-397157ffe8f4
-begin
-	# getting equilibrium points
-	L_pts_em = eq_pts(μ_em);
-
-	# computing jacobi constants
-	Cs_em = [pseudopotential(μ_em, xi, yi, true) for (xi, yi) ∈ values(L_pts_em)]
-
-	# copying over hw-1's data
-	Ls_frm_hw1 = [(0.83, 0), (1.15, 0), (-1.00, 0), (0.48, 0.86), (0.48, -0.86)]
-
-	# generating table
-	df_em = DataFrame(L_Point_em=[i for i ∈ keys(L_pts_em)], 
-		                x_nd=[i[1] for i ∈ values(L_pts_em)],
-				        y_nd=[i[2] for i ∈ values(L_pts_em)], 
-		                jacobi=Cs_em, μ=μ_em, 
-		                x_nd_hw1=[i[1] for i ∈ values(Ls_frm_hw1)],
-				        y_nd_hw1=[i[2] for i ∈ values(Ls_frm_hw1)])
-	
-end
-
-# ╔═╡ e6bb1be6-070d-4bd2-9928-eadc59d4db74
+# ╔═╡ 6fb5626f-91d8-49b4-a352-ef6f6cb72584
 md"""
-##### 1c) Discuss the effect of the mass ratio on the locations of each equilibrium point. Generate and use any combination of data, figures, calculations and/or theory to support your argument.
+## Problem 2d):
+Plot the corrected solution and the initial guess in the xy-plane of the rotating frame in the same figure; add to this plot any additional annotations that may be useful. Report the initial state vector and orbit period associated with the final solution that you compute via your corrections algorithm.
 """
 
-# ╔═╡ e0c4d3f0-2d88-48f7-90d6-6ced5446735e
-begin
-	# sun-earth system
-	m_star_se = m_sun + m_earth
-	μ_se = m_earth / m_star_se
+# ╔═╡ 768afbb7-6c44-4334-bc2e-c94226d5d080
 
-	L_pts_se = eq_pts(μ_se);
-	
-	df_se = DataFrame(L_Point_sunearth=[i for i ∈ keys(L_pts_se)], 
-		           x_nd=[i[1] for i ∈ values(L_pts_se)],
-				   y_nd=[i[2] for i ∈ values(L_pts_se)], μ=μ_se)
-end
 
-# ╔═╡ c0da7e7b-0352-47f6-b833-e932c260229c
-@bind μ_1c Slider(0.01:0.01:0.9, show_value=true)
+# ╔═╡ a91f4c7d-34ec-42d7-acde-c6442cfc7aa0
 
-# ╔═╡ 6c78f559-9948-4f9b-9230-8865b8489900
-begin
-	L_pts_3 = eq_pts(μ_1c);
-	df_3 = DataFrame(L_Point=[i for i ∈ keys(L_pts_3)], 
-		           x_nd=[i[1] for i ∈ values(L_pts_3)],
-				   y_nd=[i[2] for i ∈ values(L_pts_3)], μ_arbitrary=μ_1c)
-end
 
-# ╔═╡ 610d728a-ee78-4015-ad68-5629b3c4d38c
+# ╔═╡ ae009636-4add-4724-8dfe-156c27f28202
 md"""
-##### 1c writeup: 
-
-Two tables were generated with the first using the sun-earth μ value, while the second using an arbitrary μ of 0.05. Comparing the two tables above with the original table for the earth-moon system, as μ increases, the relative position of the collinear equilibrium point L2 increases while points L1, L3 decreases. For the points L4, L5, the x-axis value decreases for higher μ's and increases if μ is lower, while the y-axis value remains constant regardless of μ. This makes sense for the y-values, since the distance between the primaries, r1, r2 = 1, their positions create an equilateral triangle with x dependent on μ and y determined by the equilateral triangle formula with a constant side value of r=1.
+## Problem 3a):
+Implement natural parameter continuation to compute additional orbits along the Earth-Moon L1 Lyapunov family using the x-coordinate of one of the crossings of the x-axis as the natural parameter. Discuss your numerical implementation of this continuation method and the selection of any governing parameters. Copy the text of the scripts created and used throughout this entire problem to the end of your submission for this subproblem.
 """
 
-# ╔═╡ 884d4535-a599-48e7-ba7e-5603ca3d4dd7
+# ╔═╡ ebff8644-4aa3-43a5-aedc-719a13dad41d
 
 
-# ╔═╡ 31ba8f34-593a-48dd-8abb-cda52acfbb4d
+# ╔═╡ ca986c88-d8c3-4bd1-9df8-9c20e663d1b7
+
+
+# ╔═╡ 8f4c22e9-5117-4d64-b0ba-16943733e1c6
 md"""
-### Problem 2
-
-##### Use the characteristic equation of the variational equations to calculate the in-plane and out-of-plane eigenvalues of each of the five equilibrium points for the Earth-Moon and Sun-Earth systems (use the parameter file from HW 1 to calculate the mass ratio for the Sun-Earth system). Report this information in a table and identify the in-plane and out-of-plane modes.
+## Problem 3b):
+Plot a sample of the orbits you computed along this family (i.e., rather than plot every single orbit that is computed, it often helps to plot every n-th orbit for clearer visualization). In a separate figure, represent the family in a two-parameter space with the orbital period (in days) on the horizontal axis and the Jacobi constant on the vertical axis. Discuss how far along this family you have computed orbits with this continuation method and the step size you selected.
 """
 
-# ╔═╡ c9b1ff21-67b8-4216-b8d3-7950385e1813
-begin
-	function compute_λ(x, y, z, μ, compute_eigvec::Bool=false)
-			
-		# positions of primaries to third body
-		r1 = sqrt((x+μ)^2 + y^2 + z^2)
-		r2 = sqrt((x-1+μ)^2 + y^2 + z^2)
-	
-		# psuedo-potential 2nd derivatives
-		# at eq. pts., U_xz, U_zx, U_yz, U-zy = 0
-		Uxx = 1 - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*(x+μ)^2/r1^5 + 3*μ*(x-1+μ)^2/r2^5
-		Uxy = 3*(1-μ)*(x+μ)*y/r1^5 + 3*μ*(x-1+μ)*y/r2^5
-		Uyx = Uxy
-		Uyy = 1 - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*y^2/r1^5 + 3*μ*y^2/r2^5
-	
-		# remaining derivatives (not needed)
-		Uxz = 3*(1-μ)*(x+μ)*z/r1^5 + 3*μ*(x-1+μ)*z/r2^5 # = 0
-		Uyz = 3*(1-μ)*y*z/r1^5 + 3*μ*y*z/r2^5 # = 0
-		Uzx = Uxz # = 0
-		Uzy = Uyz # = 0
-		Uzz = - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*z^2/r1^5 + 3*μ*z^2/r2^5
-	
-		## in-plane modes
-		# A matrix
-		A = [0    0     1   0;
-	 	     0    0     0   1;
-		     Uxx  Uxy   0   2;
-		     Uyx  Uyy  -2   0]
-	
-		# compute eigenvalues
-		eigs = eigvals(A)
-		eigs = [convert(Complex{Float16}, eig) for eig ∈ eigs]
-	
-		## out-of-plane modes
-		λ_5 = sqrt(abs(Uzz))im
-		λ_6 = -sqrt(abs(Uzz))im
-	
-		# if want to compute eigenvectors instead
-		if compute_eigvec == true
-			eigvs = [convert(Complex{Float16}, eig) for eig ∈ eigvecs(A)]
-			return eigvs
-		end
-		
-		return Dict{String,Any}(
-			"λ1_in" => eigs[4], "λ2_in" => eigs[1],
-			"λ3_in" => eigs[3], "λ4_in" => eigs[2],
-			"λ5_out" => λ_5, "λ6_out" => λ_6)
-	
-	end
+# ╔═╡ 16cc7433-d69b-4586-a59b-6b9088e670dd
 
-	compute_λ(r, μ, compute_eigvec::Bool=false) = 
-		compute_λ(r[1], r[2], r[3], μ, compute_eigvec)
-	
-end
 
-# ╔═╡ bea9992d-1291-416f-becc-ed252de0f2eb
-## in/out-of-plane modes
+# ╔═╡ 60751c56-0fe8-4bba-9f17-1ea9d15975da
 
-begin
 
-	# equilibrium points 1-5
-	eqpts = [1, 2, 3, 4, 5]
-
-	# for earth-moon
-	eigs_em = Vector{Dict}()
-	for i in eqpts
-		rvec = [df_em.x_nd[i], df_em.y_nd[i], 0]
-		push!(eigs_em, compute_λ(rvec, μ_em))
-	end
-	
-	# for sun-earth
-	eigs_se = Vector{Dict}()
-	for i in eqpts
-		rvec = [df_se.x_nd[i], df_se.y_nd[i], 0]
-		push!(eigs_se, compute_λ(rvec, μ_se))
-	end
-
-end
-
-# ╔═╡ 59c08b1f-26b4-4767-a564-7c19260ee9a3
-begin
-	
-	# convert to table (earth-moon)
-	df_eigs_em = DataFrame(L_earthmoon = ["L1", "L2", "L3", "L4", "L5"])
-
-	# adding columns
-	insertcols!(df_eigs_em,:λ1_in => [eigs_em[i]["λ1_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_em,:λ2_in => [eigs_em[i]["λ2_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_em,:λ3_in => [eigs_em[i]["λ3_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_em,:λ4_in => [eigs_em[i]["λ4_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_em,:λ5_out => [eigs_em[i]["λ5_out"] for i ∈ 1:5])
-	insertcols!(df_eigs_em,:λ6_out => [eigs_em[i]["λ6_out"] for i ∈ 1:5])
-
-end
-
-# ╔═╡ a82e6fc8-fa79-4e3f-8ebe-4ff047b23aa2
-begin
-	
-	# convert to table (sun-earth)
-	df_eigs_se = DataFrame(L_sunearth = ["L1", "L2", "L3", "L4", "L5"])
-	
-	# adding columns
-	insertcols!(df_eigs_se,:λ1_in => [eigs_se[i]["λ1_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_se,:λ2_in => [eigs_se[i]["λ2_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_se,:λ3_in => [eigs_se[i]["λ3_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_se,:λ4_in => [eigs_se[i]["λ4_in"] for i ∈ 1:5])
-	insertcols!(df_eigs_se,:λ5_out => [eigs_se[i]["λ5_out"] for i ∈ 1:5])
-	insertcols!(df_eigs_se,:λ6_out => [eigs_se[i]["λ6_out"] for i ∈ 1:5])
-
-end
-
-# ╔═╡ e8c988b3-d7ef-4abc-ad20-f732d3c90584
+# ╔═╡ a9f70e8f-5bad-4ce2-89b4-e465a0ea852c
 md"""
-##### Problem 2 writeup: 
+## Problem 4):
+Use the corrections algorithm you developed in Problem 2 to compute an Earth-Moon L1 halo orbit using the following initial guess for a nondimensional state along the orbit and the orbit period:
 
-note: for the eigenvalue tables above, λi\_in = ith in-plane eigenvalue, λi_out = ith out-of-plane eigenvalues. For L1-L3, there exists two pair real value terms and two imaginary terms, each containing one positive and one negative. This is due to the characteristic equation with complex conjugate solutions of eigenvalue terms from the A matrix.
+𝑥̅₀ = [0.82340, 0,−0.026755,0,0.13742,0]ᵀ and T = 2.7477
+
+Note that I have provided a truncated state vector in this homework, but it is typical to report more digits (e.g., at least 12) when listing the state along a corrected periodic orbit. 
+
+Correct the initial guess and graphically display the norm of the constraint vector at each iteration. Report the initial state vector and orbit period associated with the final solution that you compute via your corrections algorithm. Assess in detail the performance of your algorithm in successfully recovering an L1 halo orbit. Plot the corrected solution and the initial guess in the rotating frame in the same figure using different colors; add to this plot any additional annotations that may be useful.
 """
 
-# ╔═╡ df6267a8-c1a4-4483-b245-174c6e9663ef
-md"""
-### Problem 3
+# ╔═╡ c3fe8e25-8232-4268-8c6d-cddc9bf3058c
 
-##### Calculate the critical value of the mass ratio that corresponds to a change in the stability of L4 and L5 in the CR3BP. Generate and use relevant data and/or figures to justify your response.
+
+# ╔═╡ 5ac1c394-d60a-486a-9834-2b447b55b375
+
+
+# ╔═╡ 55ded8a7-efac-4adf-889f-700e10a08c47
+md"""
+## Problem 5a):
+Implement pseudo-arclength continuation to compute additional orbits along the Earth-Moon L1 halo family, starting from the initial periodic orbit calculated in Problem 4. Discuss your numerical implementation of this continuation method and the selected values of any governing parameters. Copy the text of the scripts created and used throughout this entire problem to the end of your submission for this subproblem.
 """
 
-# ╔═╡ d282cc3b-f00f-41e1-8837-f6c607ce2e5b
-begin
+# ╔═╡ 68218675-c872-43ae-8254-fc90ccb1ac1f
 
-	# computing L4 critical value (earth-moon)
-	df_em_L4 = DataFrame()
-	μs = range(0.01, 0.05, length=400)
 
-	# pulling L4 coordinates
-	x_em_L4 = df_em.x_nd[4]
-	y_em_L4 = df_em.y_nd[4]
-	z_em_L4 = 0
+# ╔═╡ f4164880-2ee5-4cee-b659-415d6f5052f8
 
-	# computing eigenvalues through μ range
-	for μ_i in μs
-		eigs_L4 = compute_λ(x_em_L4, y_em_L4, z_em_L4, μ_i)
-		eigs_L4["i_μ_earthmoon"]=(μ_i)
 
-		df_i = DataFrame(eigs_L4)
-		append!(df_em_L4,df_i)
-	end
-
-	# finding the critical value and clipping the table to critical value row
-	real_idxs_L4 = findall((real(df_em_L4.λ1_in) .> 0))
-	df_em_L4[real_idxs_L4[1]-4:real_idxs_L4[1]+4, :]
-	
-end
-
-# ╔═╡ 5113cb23-dc4a-4305-9b18-e32713c905ba
-begin
-
-	# computing L5 critical value (earth-moon)
-	df_em_L5 = DataFrame()
-
-	# pulling L5 coordinates
-	rvec_L5_em = [df_em.x_nd[5], df_em.y_nd[5], 0]
-
-	# computing eigenvalues through μ range
-	for μ_i in μs
-		eigs_L5 = compute_λ(rvec_L5_em, μ_i)
-		eigs_L5["i_μ_earthmoon"]=(μ_i)
-
-		df_i = DataFrame(eigs_L5)
-		append!(df_em_L5,df_i)
-	end
-	
-	# finding the critical value and clipping the table to critical value row
-	real_idxs_L5 = findall((real(df_em_L5.λ1_in) .> 0))
-	df_em_L5[real_idxs_L5[1]-4:real_idxs_L5[1]+4, :]
-
-end
-
-# ╔═╡ 7a27d831-be8a-498d-9365-f86cce2d551c
+# ╔═╡ f965185d-2620-45b9-bf57-b8f5f6361044
 md"""
-##### Problem 3 writeup: 
-The critical value appears to be between 0.0291479 and 0.0292481. This is determined by looking at the eigenvalues for a range of μ values such that the eigenvalue is switched from an imaginary value (oscillatory mode) to a positive real value (unstable mode). 
+## Problem 5b):
+Plot a sample of the orbits you computed along this family (i.e., rather than plot every single orbit that is computed, it often helps to plot every n-th orbit for clearer visualization). In a separate figure, represent the family in a two-parameter space with the orbital period (in days) on the horizontal axis and the Jacobi constant on the vertical axis. Discuss how far along the Earth-Moon L1 halo family you have computed orbits with this continuation method and the step size you selected in each direction along the family.
 """
 
-# ╔═╡ 6f5aea21-8573-4dad-bb1e-102dfc84b5e5
-md"""
-### Problem 4
+# ╔═╡ f3dcbc6e-217c-4203-8161-e438d8c75f15
 
-##### Following the general approach covered in the course lectures, let’s derive the analytical expressions for the initial variations relative to a collinear equilibrium point that supply a useful initial guess for a Lyapunov orbit. Use the in-plane variational equations, formulated relative to a collinear equilibrium point, and assume that in-plane variations possess the form: -- Assume that (𝜆1, 𝜆2) are the real modes and (𝜆3, 𝜆4) are the oscillatory modes for in-plane motion.
+
+# ╔═╡ aaff6049-cfb9-4e46-a47d-bf7c2f6022db
+
+
+# ╔═╡ 8214d6e1-686c-494a-a481-8b72cf9ac514
+
+
+# ╔═╡ 752bd99d-eaed-49e5-970b-645d90c26d43
+md"""
+## Scripts
 """
 
-# ╔═╡ e7b25d1f-8c65-4dd1-8bc9-9214591e8532
-begin
-	@variables λ₁, λ₃, α₁, α₃ β1, β3
-	
-	 mat=[1       1      1     1
-	      λ₁     -λ₁     λ₃     -λ₃
-	      α₁     -α₁     α₃     -α₃ 
-	      α₁*λ₁   α₁*λ₁  α₃*λ₃   α₃*λ₃]
-end
-
-# ╔═╡ ad1fe7b0-8062-494f-94ce-7b7997e65f84
+# ╔═╡ 27faf37f-123c-4ac5-ae70-15b030004d87
 md"""
-##### 4a. Derive expressions for the Aj coefficients in terms of the initial conditions 𝜉0, 𝜂0, 𝜉̇0, 𝜂̇0, the two modes (𝜆1, 𝜆3), and the second derivatives of the pseudo-potential function. It helps to follow the process we summarized in class.
+## Problem 1
 """
 
-# ╔═╡ d0d7533a-aede-4c08-a0a9-2c06b123addd
+# ╔═╡ fdff8533-1b06-4f3e-b5e0-59808cb3e0ae
+
+
+# ╔═╡ a32f4d3d-70b5-4bec-81f2-6daf51f815c2
 md"""
-##### Problem 4a writeup: 
-
-note: 
-1. for problem 4a, please see attached sheets for derivation
-2. below is the matlab code used to generate the matrix inverse
-
-	syms l1 l3 a1 a3
-	A = [1      1     1      1; 
-	     l1    -l1    l3    -l3;
-	     a1    -a1    a3    -a3;
-	     a1*l1  a1*l1 a3*l3  a3*l3]
-	D = inv(A)
-
-
-	>> inv_mat
-	 
-	A =
-	 
-	[    1,     1,     1,     1]
-	[   l1,   -l1,    l3,   -l3]
-	[   a1,   -a1,    a3,   -a3]
-	[a1*l1, a1*l1, a3*l3, a3*l3]
-	 
-	 
-	D =
-
-	[-(a3*l3)/(2*(a1*l1 - a3*l3)), -a3/(2*(a1*l3 - a3*l1)),  l3/(2*(a1*l3 - a3*l1)),  1/(2*(a1*l1 - a3*l3))]
-	[-(a3*l3)/(2*(a1*l1 - a3*l3)),  a3/(2*(a1*l3 - a3*l1)), -l3/(2*(a1*l3 - a3*l1)),  1/(2*(a1*l1 - a3*l3))]
-	[ (a1*l1)/(2*(a1*l1 - a3*l3)),  a1/(2*(a1*l3 - a3*l1)), -l1/(2*(a1*l3 - a3*l1)), -1/(2*(a1*l1 - a3*l3))]
-	[ (a1*l1)/(2*(a1*l1 - a3*l3)), -a1/(2*(a1*l3 - a3*l1)),  l1/(2*(a1*l3 - a3*l1)), -1/(2*(a1*l1 - a3*l3))]
-
+## Problem 2
 """
 
-# ╔═╡ 8c2e13ae-7d65-47cb-b77c-2ccaeb74f75f
+# ╔═╡ 0a50dd1f-c91a-4ffb-950e-f56e6ef37a99
+
+
+# ╔═╡ 4c425e8d-8d35-41b6-8b6a-7d99f2bb6ba1
 md"""
-##### 4b. Derive initial values for (𝜉̇) , 𝜂̇)) such that only the oscillatory modes are excited. You should get the following result: 
-- 𝜂̇0 = 𝛼3𝜆3𝜉0,  
-- 𝜉̇0 = λ3η0/α3
+## Problem 3
 """
 
-# ╔═╡ ba9d5641-e058-4136-9291-ab8da9ba69f7
-md"""
-##### Problem 4b writeup: 
+# ╔═╡ 1e4dcd5a-31e1-4cd0-85c8-b0884f360fd8
 
-note:
-1. for problem 4b, please see attached sheet for derivation
+
+# ╔═╡ e31cd051-9d26-495a-b69b-f1472039b14d
+md"""
+## Problem 4
 """
 
-# ╔═╡ 9b82f67a-72fe-458d-9b01-6aee776785de
+# ╔═╡ c6681502-55c1-4bae-a3da-abd1acb4a810
+
+
+# ╔═╡ c550f57b-73f6-45f3-ba5f-c4e5ac3a7658
 md"""
-##### 4c. For a mass ratio equal to that of the Earth-Moon system and for the L1 equilibrium point, set 𝜉0 = −0.001 and 𝜂0 = 0. Then, calculate (𝜉̇0 , 𝜂̇0) when only the planar oscillatory modes are activated. In the linearized system, propagate this initial condition for one revolution around the equilibrium point. (Hint: Recall that for an oscillatory mode with eigenvalue 𝜆 = 𝑖𝜔, the period of oscillation is 𝑃 = 2𝜋/𝜔.) Then, calculate the associated initial state vector in the rotating frame and relative to the barycenter as 𝑥̅0 = [𝑥e + 𝜉0, 𝑦e + 𝜂0, 𝑧e, 𝑥̇e + 𝜉̇0 , 𝑦̇e + 𝜂̇0, 𝑧̇e ]. Propagate this initial condition for the same time interval but in the nonlinear CR3BP. Plot the two trajectories on the same figure and discuss the difference between them.
+## Problem 5
 """
 
-# ╔═╡ 1f5f70db-7c18-48f1-b98c-66f98cf81892
-begin
-	# when planar oscillatory modes activated only
-	η̇₀(α3, λ3, ξ₀) = α3 * λ3 * ξ₀
-	ξ̇₀(α3, λ3, η₀) = (λ3 * η₀) / α3
+# ╔═╡ c22bc1e9-7884-4a83-b216-e2baa15d9302
 
-	αi(λi, Uxx) = ((λi)^2 - Uxx) / (2 * λi)
-end
-
-# ╔═╡ bf0e8915-8099-43b6-b30b-db641323cbd4
-begin
-	
-	function Uii_matrix(x, y, z, μ)
-	
-		# positions of primaries to third body
-		r1 = ((x+μ)^2 + y^2 + z^2)^0.5
-		r2 = ((x-1+μ)^2 + y^2 + z^2)^0.5
-	
-		# psuedo-potential 2nd derivatives
-		# at eq. pts., U_xz, U_zx, U_yz, U-zy = 0
-		Uxx = 1 - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*(x+μ)^2/r1^5 + 3*μ*(x-1+μ)^2/r2^5
-		Uxy = 3*(1-μ)*(x+μ)*y/r1^5 + 3*μ*(x-1+μ)*y/r2^5
-		Uyx = Uxy
-		Uyy = 1 - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*y^2/r1^5 + 3*μ*y^2/r2^5
-	
-		# remaining derivatives (not needed)
-		Uxz = 3*(1-μ)*(x+μ)*z/r1^5 + 3*μ*(x-1+μ)*z/r2^5 # = 0
-		Uyz = 3*(1-μ)*y*z/r1^5 + 3*μ*y*z/r2^5 # = 0
-		Uzx = Uxz # = 0
-		Uzy = Uyz # = 0
-		Uzz = - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*z^2/r1^5 + 3*μ*z^2/r2^5
-	
-		return [Uxx Uxy Uxz; Uyx Uyy Uyz; Uzx Uzy Uzz]
-	end
-
-	Uii_matrix(r, μ) = Uii_matrix(r[1], r[2], r[3], μ) 
-	
-end
-
-# ╔═╡ 6cedb67b-d323-4e11-b674-fb5badc1a1d2
-begin
-
-	# initial conditions
-	ξ₀_4c = -0.001
-	η₀_4c = 0
-	
-	# getting λ3
-	L_pt_4c = 1
-	L1_em_eigs = df_eigs_em[L_pt_4c,:]
-	λ3_4c = imag(L1_em_eigs.λ3_in)
-
-	# getting Uxx
-	rvec_4c = [df_em.x_nd[L_pt_4c], df_em.y_nd[L_pt_4c], 0]
-	u_2partials_4c = Uii_matrix(rvec_4c, μ_em)
-	Uxx_4c = u_2partials_4c[1]
-
-	# getting α3
-	α3_4c = αi(λ3_4c, Uxx_4c)
-
-	# getting η̇₀ and ξ̇₀
-	ξ̇₀_4c = ξ̇₀(α3_4c, λ3_4c, η₀_4c)
-	η̇₀_4c = η̇₀(α3_4c, λ3_4c, ξ₀_4c)
-
-end
-
-# ╔═╡ 82e8d792-3c14-458c-b329-59d39718d8ba
-function linearized_eom(dx,x,params,t)
-
-	# extracting parameters from array
-	mu = params[1]
-	U_mat = params[2]
-	Uxx = U_mat[1]
-	Uxy = U_mat[2]
-	Uyx = U_mat[4]
-	Uyy = U_mat[5]
-
-    # linearized derivatives
-    dx[1] = x[3]
-    dx[2] = x[4]
-    dx[3] = Uxx*x[1] + Uxy*x[2] + 2*x[4]
-    dx[4] = Uyx*x[1] + Uyy*x[2] - 2*x[3]
-	
-end
-
-
-# ╔═╡ 8dfc1635-378d-40a6-83bb-4bf6815e9874
-begin
-    # initial condition for linearized system
-    x_bar_4c = [ξ₀_4c, η₀_4c, ξ̇₀_4c, η̇₀_4c]
-    
-    # 1 period
-    tspan_4c = (0.0, 2*pi/λ3_4c)
-
-    # setting up solver
-	params = [μ_em, u_2partials_4c]
-    prob_4c = ODEProblem(linearized_eom, x_bar_4c, tspan_4c, params)
-    sol_4c = solve(prob_4c, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e7)
-
-    # 2d plot in earth-moon rotating frame
-    plot(sol_4c[1,:], sol_4c[2,:], label="linearized trajectory", 
-		title="plane view", xlabel="ξ [-]", ylabel="η [-]", aspect_ratio = 1)
-    
-    # adding L1
-    scatter!([0],[0], color="red", markersize = 4, label="L1", markershape=:diamond)
-	
-end
-
-# ╔═╡ ff5e60ef-535e-4ef0-8b15-6432dc411587
-function crtbp(dx,x,mu,t)
-
-    # positions of primaries to third body
-    r1 = ((x[1]+mu)^2 + x[2]^2 + x[3]^2)^0.5
-    r2 = ((x[1]-1+mu)^2 + x[2]^2 + x[3]^2)^0.5
-
-    # derivatives
-    dx[1] = x[4]
-    dx[2] = x[5]
-    dx[3] = x[6]
-    dx[4] = 2*x[5] + x[1] - (1-mu)*(x[1]+mu)/r1^3 - (mu*(x[1]-1+mu))/r2^3
-    dx[5] = -2*x[4] + x[2] - (1-mu)*x[2]/r1^3 - mu*x[2]/r2^3
-    dx[6] = -(1-mu)*x[3]/r1^3 - mu*x[3]/r2^3
-
-end
-
-# ╔═╡ 49bd17e7-a9d4-4dde-a364-efb488892e8a
-begin
-
-	x_4c, y_4c, z_4c = rvec_4c
-	
-    # initial condition with variation in nonlinear crtbp
-    x_bar_4c_nl = [x_4c+ξ₀_4c, y_4c+η₀_4c, 0, ξ̇₀_4c, η̇₀_4c, 0]
-
-    # 1 period
-    tspan_4c_nl = tspan_4c
-
-    # setting up solver
-    prob_4c_nl = ODEProblem(crtbp, x_bar_4c_nl, tspan_4c_nl, μ_em)
-    sol_4c_nl = solve(prob_4c_nl, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e6)
-    
-    # plot in earth-moon rotating frame
-    plot!(sol_4c_nl[1,:].-x_4c, sol_4c_nl[2,:], label="nonlinear trajectory", 
-		title="(rotating frame)", xlabel="x [-]", ylabel="y [-]", 
-		aspect_ratio = 1)
-    
-end
-
-# ╔═╡ 255efa49-81e8-4d71-8a27-5a338e0542c6
-md"""
-##### Problem 4c writeup: 
-The negative ξ₀ deviation causes the trajectory to leave the vicinity of L1. The variation causes a compounded relative positional state differences between the two trajectories. Since the L1 point is unstable, the perturbation forces the trajectory to leave the vicinity of the equilibrium point.
-"""
-
-# ╔═╡ e20c093e-40e6-47c8-9b3e-a3390cd37caf
-md"""
-##### 4d. Let’s try generating an initial guess for an L1 Lyapunov orbit using an alternate approach: using the eigenvectors associated with the oscillatory modes in the linear system. Calculate and report the complex eigenvectors associated with (𝜆3, 𝜆4); the two eigenvectors should be a complex conjugate pair. Calculate and report the real and imaginary components of these complex eigenvectors; these components supply us with a set of real basis vectors that describe the associated eigenspace. Discuss the connection between the real and/or imaginary components of these eigenvectors to the process of selecting an initial variation to generate a periodic path relative to L1 in the linearized system. Also compare the real and/or imaginary components of these eigenvectors to the initial variation you calculated in part c).
-"""
-
-# ╔═╡ 339c45cf-5093-4887-8a89-308c46e29cb1
-begin
-
-	L_pt_4d = 1
-	rvec_4d = [df_em.x_nd[L_pt_4d], df_em.y_nd[L_pt_4d], 0]
-	eigvs_4d = compute_λ(rvec_4d, μ_em, true)
-	eigv_λ3_4d = eigvs_4d[1:4, 3]
-	eigv_λ4_4d = eigvs_4d[1:4, 2]
-
-	df_eigv_4d = DataFrame("λ3_eigvec_L1"=> eigv_λ3_4d, 
-		                   "λ4_eigvec_L1"=> eigv_λ4_4d)
-	
-end
-
-# ╔═╡ 3ec8ef9a-1191-48cf-a1bc-71f62caf8037
-md"""
-##### 4d writeup:
-Imaginary values for the in-plane eigenvalue corresponds to the oscillatory mode pair and eigenvalues with only real components determines the stability mode of the value in the nonlinear system, with positive values being unstable. If the eigenvalue contains an imaginary value, then it is marginally stable and further analysis is needed to determine its stability. The eigenvalues are used in the linerized variational equations to compute possible initial conditions/guesses that can generate Lyapunov orbits (by selecting the values that lie in the center eigenspace, where eigenvalues are purely imaginary, of the equilibrium point of interest). 
-- Comparing with the variations computed from 4c: 
-- [ξ₀, η₀, ξ̇₀, η̇₀] = [0.001, 0.0, -0.0, 0.00292299]
-"""
-
-# ╔═╡ d6ce2609-0f49-4e81-a739-61d732faf063
-md"""
-### Problem 5
-
-##### 5a. Calculate the eigenvalues and eigenvectors of the A2D matrix (defined in class) associated with the in-plane variational equations, formulated relative to L4, in the Earth-Moon system.
-"""
-
-# ╔═╡ 0a415f9c-2297-4bfb-8d2c-43c05d1518d1
-begin
-	Lpt_5a = 4
-	rvec_5a = [df_em.x_nd[Lpt_5a], df_em.y_nd[Lpt_5a], 0]
-	eigvecs_5a = compute_λ(rvec_5a, μ_em, true)
-	eigv_λ3_5a = eigvecs_5a[1:4, 3]
-	eigv_λ4_5a = eigvecs_5a[1:4, 2]
-
-	df_eigv_5a = DataFrame("λ1_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 4], 
-						   "λ2_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 1], 
-						   "λ3_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 3], 
-					       "λ4_eigvec_L$Lpt_5a"=> eigvecs_5a[1:4, 2])
-end
-
-# ╔═╡ 025dd87d-7a7c-461a-afcb-25e1f687723d
-begin
-
-	L4_eigvals_5a = compute_λ(rvec_5a, μ_em)
-	
-	df_L4_eigvals_5a = DataFrame(L4_eigvals_5a)
-	df_L4_eigvals_5a = select!(df_L4_eigvals_5a, Not([:λ5_out, :λ6_out]))
-end
-
-# ╔═╡ 5d0aa79e-6fbe-4b6b-a7bd-f80b96aa7a42
-md"""
-##### 5b. Use these eigenvalues and eigenvectors to calculate an initial variation that will supply an initial guess for each of: 1) a short period orbit near L4 and 2) a long period orbit near L4. (Hint: an initial guess for a short period orbit is generated by exciting the in-plane oscillatory mode with the shortest period or, equivalently, the highest frequency). Select this initial variation such that the vector of the position components, [𝜉0, 𝜂0], possesses a magnitude of 0.02 nondimensional units.
-"""
-
-# ╔═╡ 3a49fc54-f15c-4dad-8c18-de512c98cc90
-begin
-	## short period
-	
-	# initial conditions
-	# mag2 = 0.0004
-	ξ₀_5b = 0.012
-	η₀_5b = sqrt(0.0004 - ξ₀_5b^2)
-
-	# getting U matrix
-	rvec_5b = [df_em.x_nd[Lpt_5a], df_em.y_nd[Lpt_5a], 0]
-	u_2partials_5b = Uii_matrix(rvec_5b, μ_em)
-	U_mat_5b = u_2partials_5b
-
-	# getting λ3
-	λ3_5b = imag(df_eigv_5a.λ4_eigvec_L4)[3]
-	
-	# getting α3
-	α3_5b = αi(λ3_5b, U_mat_5b[1])
-
-	# getting η̇₀ and ξ̇₀
-	ξ̇₀_5b = ξ̇₀(α3_5b, λ3_5b, η₀_5b)
-	η̇₀_5b = η̇₀(α3_5b, λ3_5b, ξ₀_5b)
-
-	println("initial variation (short-period)")
-	println("ξ₀: ", ξ₀_5b)
-	println("η₀: ", η₀_5b)
-	println("ξ̇₀: ", ξ̇₀_5b)
-	println("η̇₀: ", η̇₀_5b)
-	println()
-	
-	## long period
-	# getting λ3
-	λ3_5bl = imag(df_eigv_5a.λ3_eigvec_L4)[3]
-
-	# getting α3
-	α3_5bl = αi(λ3_5bl, U_mat_5b[1])
-
-	# getting η̇₀ and ξ̇₀
-	ξ̇₀_5bl = ξ̇₀(α3_5bl, λ3_5bl, η₀_5b)
-	η̇₀_5bl = η̇₀(α3_5bl, λ3_5bl, ξ₀_5b)
-
-	println("initial variation (long-period)")
-	println("ξ₀: ", ξ₀_5b)
-	println("η₀: ", η₀_5b)
-	println("ξ̇₀: ", ξ̇₀_5bl)
-	println("η̇₀: ", η̇₀_5bl)
-	println()
-end
-
-# ╔═╡ e77192f2-3e24-4b5f-b18f-a2fd1e1168ff
-md"""
-##### 5c. In the linearized system, propagate these initial variations for one revolution around the equilibrium point. (Hint: Recall that for an oscillatory mode with eigenvalue 𝜆 = 𝑖𝜔, the period of oscillation is 𝑃 = 2𝜋/𝜔.) Then, calculate the associated initial state vectors in the rotating frame and relative to the barycenter as 𝑥̅) = [𝑥, + 𝜉0, 𝑦, + 𝜂0, 𝑧,, 𝑥̇, + 𝜉̇0, 𝑦̇, + 𝜂̇0, 𝑧̇, ]. Propagate these initial conditions for the same time interval but in the nonlinear CR3BP. For each type of orbit, plot the two trajectories associated with the same initial variation on the same figure and discuss the difference between them; plot the trajectories associated with short period and long period motion on separate figures.
-"""
-
-# ╔═╡ 9297c633-5824-49b0-858e-7edbfec4bacc
-begin
-	## short period
-	
-	# initial condition with variation
-    x_bar_5c = [ξ₀_5b, η₀_5b, ξ̇₀_5b, η̇₀_5b]
-    
-    # 1 period
-    tspan_5c = (0.0, 2*pi/λ3_5b)
-
-    # setting up solver
-	params_5c = [μ_em, u_2partials_5b]
-    prob_5c = ODEProblem(linearized_eom, x_bar_5c, tspan_5c, params_5c)
-    sol_5c = solve(prob_5c, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e7)
-
-    # 2d plot in earth-moon rotating frame
-    plot(sol_5c[1,:], sol_5c[2,:], label="linearized trajectory - short period", 
-		title="(short-period linearized)", xlabel="ξ [-]", ylabel="η [-]", aspect_ratio = 1)
-    
-    # adding L4
-    scatter!([0],[0], color="red", markersize = 4, label="L4", markershape=:diamond)
-    
-	# adding final state
-	scatter!([last(sol_5c)[1]],[last(sol_5c)[2]], color="green", 
-		markersize = 3, label="final_state_linearized", markershape=:circle)
-	
-end
-
-# ╔═╡ 705712ed-84af-4155-a413-b29350f53972
-md"""
-##### 5c-1 writeup:
-The above plot shows the short period orbit computed from the linearized variations given above plus the nonlinear CRTBP orbit perturbated by the variation. The nonlinear trajectory appears to deviate away from the equilibrium point while the linearized trajectory is returning (or oscillating) at the equilibrium point. The two trajectories are similar at the initially but exponentially deviates from each other.
-"""
-
-# ╔═╡ a4f7e5f8-4d3d-4df0-afe5-b3f29b2ee7ac
-begin
-	## long period
-	
-	# initial condition with variation
-    x_bar_5cl = [ξ₀_5b, η₀_5b, ξ̇₀_5bl, η̇₀_5bl]
-    
-    # 1 period
-    tspan_5cl = (0.0, 2*pi/λ3_5bl)
-
-    # setting up solver
-    prob_5cl = ODEProblem(linearized_eom, x_bar_5cl, tspan_5cl, params_5c)
-    sol_5cl = solve(prob_5cl, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e7)
-
-    # 2d plot in earth-moon rotating frame
-    plot(sol_5cl[1,:], sol_5cl[2,:], label="linearized trajectory - long period", 
-		title="(long-period linearized)", xlabel="ξ [-]", ylabel="η [-]", aspect_ratio = 1)
-    
-    # adding L1
-    scatter!([0],[0], color="red", markersize = 4, label="L4", markershape=:diamond)
-
-	# adding final state
-	scatter!([last(sol_5cl)[1]],[last(sol_5cl)[2]], color="green", 
-		markersize = 3, label="final_state_linearized", markershape=:circle)
-end
-
-# ╔═╡ 52acb5d7-0672-4b41-af31-315e3fc84679
-begin
-	## long period nonlinear
-
-	x_5b, y_5b, z_5b = rvec_5b
-    # initial condition with variation in nonlinear crtbp
-    x_bar_5cl_nl = [x_5b+ξ₀_5b, y_5b+η₀_5b, 0, ξ̇₀_5bl, η̇₀_5bl, 0]
-
-    # 1 period
-    tspan_5cl_nl = tspan_5c
-
-    # setting up solver
-    prob_5cl_nl = ODEProblem(crtbp, x_bar_5cl_nl, tspan_5cl_nl, μ_em)
-    sol_5cl_nl = solve(prob_5cl_nl, Vern7(), 
-		reltol=1e-14, abstol=1e-14, maxiters=1e6)
-    
-    # 3d plot in earth-moon rotating frame
-    plot!(sol_5cl_nl[1,:].-x_5b, sol_5cl_nl[2,:].-y_5b, 
-		label="nonlinear trajectory", title="(long-period combined)", xlabel="x [-]", ylabel="y [-]", aspect_ratio = 1)
-
-	# adding final state
-	scatter!([last(sol_5cl_nl)[1]-x_5b],[last(sol_5cl_nl)[2]-y_5b], 
-		color="orange", markersize = 3, label="final_state_nonlinear", markershape=:circle)
-
-	
-end
-
-# ╔═╡ 57512a0e-fd6f-494e-8366-35c4e4692d73
-begin
-	## short period nonlinear
-	
-    # initial condition with variation in nonlinear crtbp
-    x_bar_5c_nl = [x_5b+ξ₀_5b, y_5b+η₀_5b, 0, ξ̇₀_5b, η̇₀_5b, 0]
-
-    # 1 period
-    tspan_5c_nl = tspan_5c
-
-    # setting up solver
-    prob_5c_nl = ODEProblem(crtbp, x_bar_5c_nl, tspan_5c_nl, μ_em)
-    sol_5c_nl = solve(prob_5c_nl, Vern7(), reltol=1e-14, abstol=1e-14, maxiters=1e6)
-    
-    # 3d plot in earth-moon rotating frame
-    plot!(sol_5c_nl[1,:].-x_5b, sol_5c_nl[2,:].-y_5b, label="nonlinear trajectory", 
-		title="(short-period combined)", xlabel="x [-]", ylabel="y [-]", 
-		aspect_ratio = 1)
-
-	# adding final state
-	scatter!([last(sol_5c_nl)[1]-x_5b],[last(sol_5c_nl)[2]-y_5b], 
-		color="orange", markersize = 3, label="final_state_nonlinear", markershape=:circle)
-	
-end
-
-# ╔═╡ a3ffdd59-4649-403a-bcfe-81af49c50b23
-md"""
-##### 5c-2 writeup:
-The above plot shows the long-period with the same initial positional variations. Similar to the short-period trajectories, the two trajectories in this plot matches initially, but exponentially deviates as the trajectory is propagated. 
-"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-ColorVectorSpace = "c3611d14-8923-5661-9e6a-0046d554d3a4"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
-FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-HypertextLiteral = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
-ImageShow = "4e3cecfd-b093-5904-9786-8bbb286a6a31"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
-ColorVectorSpace = "~0.9.9"
 DataFrames = "~1.3.6"
 DifferentialEquations = "~7.4.0"
-FileIO = "~1.15.0"
-HypertextLiteral = "~0.9.4"
-ImageIO = "~0.6.6"
-ImageShow = "~0.3.6"
 Plots = "~1.33.0"
-PlutoUI = "~0.7.40"
-Roots = "~2.0.3"
-Symbolics = "~4.10.4"
+PlutoUI = "~0.7.43"
+Roots = "~2.0.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -882,19 +229,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0"
 manifest_format = "2.0"
-project_hash = "621c4d87098900e1348bebed4edd714dfe80fdb2"
-
-[[deps.AbstractAlgebra]]
-deps = ["GroupsCore", "InteractiveUtils", "LinearAlgebra", "MacroTools", "Markdown", "Random", "RandomExtensions", "SparseArrays", "Test"]
-git-tree-sha1 = "ba2beb5f2a3170a0ef87953daefd97135cf46ecd"
-uuid = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
-version = "0.27.4"
-
-[[deps.AbstractFFTs]]
-deps = ["ChainRulesCore", "LinearAlgebra"]
-git-tree-sha1 = "69f7020bd72f069c219b5e8c236c1fa90d2cb409"
-uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
-version = "1.2.1"
+project_hash = "bb9f123b31f62b6d0b2f3b2926b14925bd509dfc"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -902,21 +237,11 @@ git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
 uuid = "6e696c72-6542-2067-7265-42206c756150"
 version = "1.1.4"
 
-[[deps.AbstractTrees]]
-git-tree-sha1 = "5c0b629df8a5566a06f5fef5100b53ea56e465a0"
-uuid = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
-version = "0.4.2"
-
 [[deps.Adapt]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "195c5505521008abea5aee4f96930717958eac6f"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.4.0"
-
-[[deps.ArgCheck]]
-git-tree-sha1 = "a3a402a35a2f7e0b87828ccabbd5ebfbebe356b4"
-uuid = "dce04be8-c92d-5529-be00-80e4d2c0e197"
-version = "2.3.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -973,35 +298,19 @@ version = "0.8.11"
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
-[[deps.AutoHashEquals]]
-git-tree-sha1 = "45bb6705d93be619b81451bb2006b7ee5d4e4453"
-uuid = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
-version = "0.2.0"
-
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "Random", "SparseArrays"]
 git-tree-sha1 = "2495db5e036dd9f16538250cf3e51bc82d0326db"
 uuid = "aae01518-5342-5314-be14-df237901396f"
 version = "0.17.6"
 
-[[deps.BangBang]]
-deps = ["Compat", "ConstructionBase", "Future", "InitialValues", "LinearAlgebra", "Requires", "Setfield", "Tables", "ZygoteRules"]
-git-tree-sha1 = "7fe6d92c4f281cf4ca6f2fba0ce7b299742da7ca"
-uuid = "198e06fe-97b7-11e9-32a5-e1d131e6ad66"
-version = "0.3.37"
-
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
-[[deps.Baselet]]
-git-tree-sha1 = "aebf55e6d7795e02ca500a689d326ac979aaf89e"
-uuid = "9718e550-a3fa-408a-8086-8db961cd8217"
-version = "0.1.1"
-
-[[deps.Bijections]]
-git-tree-sha1 = "fe4f8c5ee7f76f2198d5c2a06d3961c249cce7bd"
-uuid = "e2ed5e7c-b2de-5872-ae92-c73ca462fb04"
-version = "0.1.4"
+[[deps.BitFlags]]
+git-tree-sha1 = "84259bb6172806304b9101094a7cc4bc6f56dbc6"
+uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
+version = "0.1.5"
 
 [[deps.BitTwiddlingConvenienceFunctions]]
 deps = ["Static"]
@@ -1046,9 +355,9 @@ version = "0.5.1"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "dc4405cee4b2fe9e1108caec2d760b7ea758eca2"
+git-tree-sha1 = "e7ff6cadf743c098e08fca25c91103ee4303c9bb"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.15.5"
+version = "1.15.6"
 
 [[deps.ChangesOfVariables]]
 deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
@@ -1092,11 +401,6 @@ git-tree-sha1 = "417b0ed7b8b838aa6ca0a87aadf1bb9eb111ce40"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.12.8"
 
-[[deps.Combinatorics]]
-git-tree-sha1 = "08c8b6831dc00bfea825826be0bc8336fc369860"
-uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
-version = "1.0.2"
-
 [[deps.CommonSolve]]
 git-tree-sha1 = "332a332c97c7071600984b3c31d9067e1a4e6e25"
 uuid = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
@@ -1118,16 +422,6 @@ version = "4.2.0"
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "0.5.2+0"
-
-[[deps.CompositeTypes]]
-git-tree-sha1 = "d5b014b216dc891e81fea299638e4c10c657b582"
-uuid = "b152e2b5-7a66-4b01-a709-34e65c35f657"
-version = "0.1.2"
-
-[[deps.CompositionsBase]]
-git-tree-sha1 = "455419f7e328a1a2493cabc6428d79e951349769"
-uuid = "a33af91c-f02d-484b-be07-31d278c5ca2b"
-version = "0.1.1"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
@@ -1177,11 +471,6 @@ version = "1.0.0"
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
-[[deps.DefineSingletons]]
-git-tree-sha1 = "0fba8b706d0178b4dc7fd44a96a92382c9065c2c"
-uuid = "244e2a9f-e319-4986-a169-4d1fe445cd52"
-version = "0.1.2"
-
 [[deps.DelayDiffEq]]
 deps = ["ArrayInterface", "DataStructures", "DiffEqBase", "LinearAlgebra", "Logging", "NonlinearSolve", "OrdinaryDiffEq", "Printf", "RecursiveArrayTools", "Reexport", "SciMLBase", "UnPack"]
 git-tree-sha1 = "5acc7807b906d6a938dfeb965a6ea931260f054e"
@@ -1217,10 +506,10 @@ uuid = "77a26b50-5914-5dd7-bc55-306e6241c503"
 version = "5.13.0"
 
 [[deps.DiffResults]]
-deps = ["StaticArrays"]
-git-tree-sha1 = "c18e98cba888c6c25d1c3b048e4b3380ca956805"
+deps = ["StaticArraysCore"]
+git-tree-sha1 = "782dd5f4561f5d267313f23853baaaa4c52ea621"
 uuid = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
-version = "1.0.3"
+version = "1.1.0"
 
 [[deps.DiffRules]]
 deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
@@ -1246,21 +535,15 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "34a557ce10eb2d9142f4ef60726b4f17c1c30941"
+git-tree-sha1 = "70e9677e1195e7236763042194e3fbf147fdb146"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.73"
+version = "0.25.74"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
 git-tree-sha1 = "5158c2b41018c5f7eb1470d558127ac274eca0c9"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.9.1"
-
-[[deps.DomainSets]]
-deps = ["CompositeTypes", "IntervalSets", "LinearAlgebra", "Random", "StaticArrays", "Statistics"]
-git-tree-sha1 = "dc45fbbe91d6d17a8e187abad39fb45963d97388"
-uuid = "5b8099bc-c8ec-5219-889f-1d9e522a28bf"
-version = "0.5.13"
 
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
@@ -1273,12 +556,6 @@ git-tree-sha1 = "5837a837389fccf076445fce071c8ddaea35a566"
 uuid = "fa6b7ba4-c1ee-5f82-b5fc-ecf0adba8f74"
 version = "0.6.8"
 
-[[deps.DynamicPolynomials]]
-deps = ["DataStructures", "Future", "LinearAlgebra", "MultivariatePolynomials", "MutableArithmetics", "Pkg", "Reexport", "Test"]
-git-tree-sha1 = "d0fa82f39c2a5cdb3ee385ad52bc05c42cb4b9f0"
-uuid = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
-version = "0.4.5"
-
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
@@ -1290,11 +567,6 @@ deps = ["ArrayInterfaceCore", "GPUArraysCore", "GenericSchur", "LinearAlgebra", 
 git-tree-sha1 = "b19c3f5001b11b71d0f970f354677d604f3a1a97"
 uuid = "d4d017d3-3776-5f7e-afef-a10c40355c18"
 version = "1.19.0"
-
-[[deps.ExprTools]]
-git-tree-sha1 = "56559bbef6ca5ea0c0818fa5c90320398a6fbf8d"
-uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
-version = "0.1.8"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
@@ -1324,12 +596,6 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "14a6f7a21125f715d935fe8f83560ee833f7d79d"
 uuid = "29a986be-02c6-4525-aec4-84b980013641"
 version = "1.2.7"
-
-[[deps.FileIO]]
-deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "94f5101b96d2d968ace56f7f2db19d0a5f592e28"
-uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.15.0"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -1439,12 +705,6 @@ git-tree-sha1 = "a32d672ac2c967f3deb8a81d828afc739c838a06"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.68.3+2"
 
-[[deps.Graphics]]
-deps = ["Colors", "LinearAlgebra", "NaNMath"]
-git-tree-sha1 = "d61890399bc535850c4bf08e4e0d3a7ad0f21cbd"
-uuid = "a2bd30eb-e257-5431-a919-1863eab51364"
-version = "1.1.2"
-
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "344bf40dcab1073aca04aa0df4fb092f920e4011"
@@ -1462,23 +722,11 @@ git-tree-sha1 = "53bb909d1151e57e2484c3d1b53e19552b887fb2"
 uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
 version = "1.0.2"
 
-[[deps.Groebner]]
-deps = ["AbstractAlgebra", "Combinatorics", "Logging", "MultivariatePolynomials", "Primes", "Random"]
-git-tree-sha1 = "144cd8158cce5b36614b9c95b8afab6911bd469b"
-uuid = "0b43b601-686d-58a3-8a1c-6623616c7cd4"
-version = "0.2.10"
-
-[[deps.GroupsCore]]
-deps = ["Markdown", "Random"]
-git-tree-sha1 = "9e1a5e9f3b81ad6a5c613d181664a0efc6fe6dd7"
-uuid = "d5909c97-4eac-4ecc-a3dc-fdd0858a4120"
-version = "0.4.0"
-
 [[deps.HTTP]]
-deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "59ba44e0aa49b87a8c7a8920ec76f8afe87ed502"
+deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
+git-tree-sha1 = "4abede886fcba15cd5fd041fef776b230d004cee"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.3.3"
+version = "1.4.0"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
@@ -1521,41 +769,6 @@ git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
 version = "0.1.1"
 
-[[deps.ImageBase]]
-deps = ["ImageCore", "Reexport"]
-git-tree-sha1 = "b51bb8cae22c66d0f6357e3bcb6363145ef20835"
-uuid = "c817782e-172a-44cc-b673-b171935fbb9e"
-version = "0.1.5"
-
-[[deps.ImageCore]]
-deps = ["AbstractFFTs", "ColorVectorSpace", "Colors", "FixedPointNumbers", "Graphics", "MappedArrays", "MosaicViews", "OffsetArrays", "PaddedViews", "Reexport"]
-git-tree-sha1 = "acf614720ef026d38400b3817614c45882d75500"
-uuid = "a09fc81d-aa75-5fe9-8630-4744c3626534"
-version = "0.9.4"
-
-[[deps.ImageIO]]
-deps = ["FileIO", "IndirectArrays", "JpegTurbo", "LazyModules", "Netpbm", "OpenEXR", "PNGFiles", "QOI", "Sixel", "TiffImages", "UUIDs"]
-git-tree-sha1 = "342f789fd041a55166764c351da1710db97ce0e0"
-uuid = "82e4d734-157c-48bb-816b-45c225c6df19"
-version = "0.6.6"
-
-[[deps.ImageShow]]
-deps = ["Base64", "FileIO", "ImageBase", "ImageCore", "OffsetArrays", "StackViews"]
-git-tree-sha1 = "b563cf9ae75a635592fc73d3eb78b86220e55bd8"
-uuid = "4e3cecfd-b093-5904-9786-8bbb286a6a31"
-version = "0.3.6"
-
-[[deps.Imath_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "87f7662e03a649cffa2e05bf19c303e168732d3e"
-uuid = "905a6f67-0a94-5f89-b386-d35d92009cd1"
-version = "3.1.2+0"
-
-[[deps.IndirectArrays]]
-git-tree-sha1 = "012e604e1c7458645cb8b436f8fba789a51b257f"
-uuid = "9b13fd28-a010-5f03-acff-a1bbcff69959"
-version = "1.0.0"
-
 [[deps.Inflate]]
 git-tree-sha1 = "5cd07aab533df5170988219191dfad0519391428"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
@@ -1566,25 +779,9 @@ git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
 version = "0.5.1"
 
-[[deps.InitialValues]]
-git-tree-sha1 = "4da0f88e9a39111c2fa3add390ab15f3a44f3ca3"
-uuid = "22cec73e-a1b8-11e9-2c92-598750a2cf9c"
-version = "0.3.1"
-
-[[deps.IntegerMathUtils]]
-git-tree-sha1 = "f366daebdfb079fd1fe4e3d560f99a0c892e15bc"
-uuid = "18e54dd8-cb9d-406c-a71d-865a43cbb235"
-version = "0.1.0"
-
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
-
-[[deps.IntervalSets]]
-deps = ["Dates", "Random", "Statistics"]
-git-tree-sha1 = "076bb0da51a8c8d1229936a1af7bdfacd65037e1"
-uuid = "8197267c-284f-5f27-9208-e0e47529a953"
-version = "0.7.2"
 
 [[deps.InverseFunctions]]
 deps = ["Test"]
@@ -1624,12 +821,6 @@ deps = ["Dates", "Mmap", "Parsers", "Unicode"]
 git-tree-sha1 = "3c837543ddb02250ef42f4738347454f95079d4e"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.3"
-
-[[deps.JpegTurbo]]
-deps = ["CEnum", "FileIO", "ImageCore", "JpegTurbo_jll", "TOML"]
-git-tree-sha1 = "a77b273f1ddec645d1b7c4fd5fb98c8f90ad10a5"
-uuid = "b835a17e-a41a-41e7-81f0-2f016b05efe0"
-version = "0.1.1"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1684,12 +875,6 @@ git-tree-sha1 = "f2355693d6778a178ade15952b7ac47a4ff97996"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
-[[deps.LabelledArrays]]
-deps = ["ArrayInterfaceCore", "ArrayInterfaceStaticArrays", "ChainRulesCore", "ForwardDiff", "LinearAlgebra", "MacroTools", "PreallocationTools", "RecursiveArrayTools", "StaticArrays"]
-git-tree-sha1 = "3926535a04c12fb986028a4a86bf5a0a3cf88b91"
-uuid = "2ee39098-c373-598a-b85f-a56591580800"
-version = "1.12.0"
-
 [[deps.Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Printf", "Requires"]
 git-tree-sha1 = "ab9aa169d2160129beb241cb2750ca499b4e90e9"
@@ -1701,11 +886,6 @@ deps = ["ArrayInterface", "ArrayInterfaceOffsetArrays", "ArrayInterfaceStaticArr
 git-tree-sha1 = "b67e749fb35530979839e7b4b606a97105fe4f1c"
 uuid = "10f19ff3-798f-405d-979b-55457f8fc047"
 version = "0.1.10"
-
-[[deps.LazyModules]]
-git-tree-sha1 = "a560dd966b386ac9ae60bdd3a3d3a326062d3c3e"
-uuid = "8cdb02fc-e678-4876-92c5-9defec4f444e"
-version = "0.3.1"
 
 [[deps.LevyArea]]
 deps = ["LinearAlgebra", "Random", "SpecialFunctions"]
@@ -1816,9 +996,9 @@ version = "0.4.9"
 
 [[deps.LoopVectorization]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "ArrayInterfaceOffsetArrays", "ArrayInterfaceStaticArrays", "CPUSummary", "ChainRulesCore", "CloseOpenIntervals", "DocStringExtensions", "ForwardDiff", "HostCPUFeatures", "IfElse", "LayoutPointers", "LinearAlgebra", "OffsetArrays", "PolyesterWeave", "SIMDDualNumbers", "SIMDTypes", "SLEEFPirates", "SnoopPrecompile", "SpecialFunctions", "Static", "ThreadingUtilities", "UnPack", "VectorizationBase"]
-git-tree-sha1 = "2ebc4aab4d1463fb897e57f792ee9903c07ecdbd"
+git-tree-sha1 = "7b97cfe6e51e4fde195b7654425aa84e527d9657"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
-version = "0.12.127"
+version = "0.12.128"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -1830,11 +1010,6 @@ version = "0.5.9"
 git-tree-sha1 = "bcaef4fc7a0cfe2cba636d84cda54b5e4e4ca3cd"
 uuid = "d125e4d3-2237-4719-b19c-fa641b8a4667"
 version = "0.1.8"
-
-[[deps.MappedArrays]]
-git-tree-sha1 = "e8b359ef06ec72e8c030463fe02efe5527ee5142"
-uuid = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
-version = "0.4.1"
 
 [[deps.Markdown]]
 deps = ["Base64"]
@@ -1856,18 +1031,6 @@ git-tree-sha1 = "e498ddeee6f9fdb4551ce855a46f54dbd900245f"
 uuid = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
 version = "0.3.1"
 
-[[deps.Metatheory]]
-deps = ["AutoHashEquals", "DataStructures", "Dates", "DocStringExtensions", "Parameters", "Reexport", "TermInterface", "ThreadsX", "TimerOutputs"]
-git-tree-sha1 = "0f39bc7f71abdff12ead4fc4a7d998fb2f3c171f"
-uuid = "e9d8d322-4543-424a-9be4-0cc815abe26c"
-version = "1.3.5"
-
-[[deps.MicroCollections]]
-deps = ["BangBang", "InitialValues", "Setfield"]
-git-tree-sha1 = "6bb7786e4f24d44b4e29df03c69add1b63d88f01"
-uuid = "128add7d-3638-4c79-886c-908ea0c25c34"
-version = "0.1.2"
-
 [[deps.Missings]]
 deps = ["DataAPI"]
 git-tree-sha1 = "bf210ce90b6c9eed32d25dbcae1ebc565df2687f"
@@ -1877,12 +1040,6 @@ version = "1.0.2"
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
-[[deps.MosaicViews]]
-deps = ["MappedArrays", "OffsetArrays", "PaddedViews", "StackViews"]
-git-tree-sha1 = "b34e3bc3ca7c94914418637cb10cc4d1d80d877d"
-uuid = "e94cdb99-869f-56ef-bcf0-1ae2bcbe0389"
-version = "0.3.3"
-
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2022.2.1"
@@ -1891,18 +1048,6 @@ version = "2022.2.1"
 git-tree-sha1 = "c6190f9a7fc5d9d5915ab29f2134421b12d24a68"
 uuid = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"
 version = "0.2.2"
-
-[[deps.MultivariatePolynomials]]
-deps = ["ChainRulesCore", "DataStructures", "LinearAlgebra", "MutableArithmetics"]
-git-tree-sha1 = "393fc4d82a73c6fe0e2963dd7c882b09257be537"
-uuid = "102ac46a-7ee4-5c85-9060-abc95bfdeaa3"
-version = "0.4.6"
-
-[[deps.MutableArithmetics]]
-deps = ["LinearAlgebra", "SparseArrays", "Test"]
-git-tree-sha1 = "4e675d6e9ec02061800d6cfb695812becbd03cdf"
-uuid = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
-version = "1.0.4"
 
 [[deps.NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
@@ -1921,12 +1066,6 @@ deps = ["OpenLibm_jll"]
 git-tree-sha1 = "a7c3d1da1189a1c2fe843a3bfa04d18d20eb3211"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "1.0.1"
-
-[[deps.Netpbm]]
-deps = ["FileIO", "ImageCore"]
-git-tree-sha1 = "18efc06f6ec36a8b801b23f076e3c6ac7c3bf153"
-uuid = "f09324ee-3d7c-5217-9330-fc30815ba969"
-version = "1.0.2"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
@@ -1955,22 +1094,16 @@ deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 version = "0.3.20+0"
 
-[[deps.OpenEXR]]
-deps = ["Colors", "FileIO", "OpenEXR_jll"]
-git-tree-sha1 = "327f53360fdb54df7ecd01e96ef1983536d1e633"
-uuid = "52e1d378-f018-4a11-a4be-720524705ac7"
-version = "0.3.2"
-
-[[deps.OpenEXR_jll]]
-deps = ["Artifacts", "Imath_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
-git-tree-sha1 = "923319661e9a22712f24596ce81c54fc0366f304"
-uuid = "18a262bb-aa17-5467-a713-aee519bc75cb"
-version = "3.1.1+0"
-
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 version = "0.8.1+0"
+
+[[deps.OpenSSL]]
+deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
+git-tree-sha1 = "fa44e6aa7dfb963746999ca8129c1ef2cf1c816b"
+uuid = "4d8831e6-92b7-49fb-bdf8-b643e874388c"
+version = "1.1.1"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2003,9 +1136,9 @@ version = "1.4.1"
 
 [[deps.OrdinaryDiffEq]]
 deps = ["Adapt", "ArrayInterface", "ArrayInterfaceGPUArrays", "ArrayInterfaceStaticArrays", "DataStructures", "DiffEqBase", "DocStringExtensions", "ExponentialUtilities", "FastBroadcast", "FastClosures", "FiniteDiff", "ForwardDiff", "FunctionWrappersWrappers", "LinearAlgebra", "LinearSolve", "Logging", "LoopVectorization", "MacroTools", "MuladdMacro", "NLsolve", "NonlinearSolve", "Polyester", "PreallocationTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "SnoopPrecompile", "SparseArrays", "SparseDiffTools", "StaticArrays", "UnPack"]
-git-tree-sha1 = "68ea6b12e2ef96c350b6a329613fd1bb9de1f1e0"
+git-tree-sha1 = "eb86665fceb26f3db4123266c7b517146ad83d45"
 uuid = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
-version = "6.27.1"
+version = "6.27.2"
 
 [[deps.PCRE_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2018,18 +1151,6 @@ deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
 git-tree-sha1 = "cf494dca75a69712a72b80bc48f59dcf3dea63ec"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
 version = "0.11.16"
-
-[[deps.PNGFiles]]
-deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
-git-tree-sha1 = "e925a64b8585aa9f4e3047b8d2cdc3f0e79fd4e4"
-uuid = "f57f5aa1-a3ce-4bc8-8ab9-96f992907883"
-version = "0.3.16"
-
-[[deps.PaddedViews]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "03a7a85b76381a3d04c7a1656039197e70eda03d"
-uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
-version = "0.5.11"
 
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]
@@ -2054,12 +1175,6 @@ deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markd
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 version = "1.8.0"
 
-[[deps.PkgVersion]]
-deps = ["Pkg"]
-git-tree-sha1 = "f6cf8e7944e50901594838951729a1861e668cb8"
-uuid = "eebad327-c553-4316-9ea0-9fa01ccd7688"
-version = "0.3.2"
-
 [[deps.PlotThemes]]
 deps = ["PlotUtils", "Statistics"]
 git-tree-sha1 = "8162b2f8547bc23876edd0c5181b27702ae58dce"
@@ -2080,9 +1195,9 @@ version = "1.33.0"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "a602d7b0babfca89005da04d89223b867b55319f"
+git-tree-sha1 = "2777a5c2c91b3145f5aa75b61bb4c2eb38797136"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.40"
+version = "0.7.43"
 
 [[deps.PoissonRandom]]
 deps = ["Random"]
@@ -2132,27 +1247,9 @@ git-tree-sha1 = "dfb54c4e414caa595a1f2ed759b160f5a3ddcba5"
 uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 version = "1.3.1"
 
-[[deps.Primes]]
-deps = ["IntegerMathUtils"]
-git-tree-sha1 = "311a2aa90a64076ea0fac2ad7492e914e6feeb81"
-uuid = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
-version = "0.5.3"
-
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-
-[[deps.ProgressMeter]]
-deps = ["Distributed", "Printf"]
-git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
-uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.7.2"
-
-[[deps.QOI]]
-deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
-git-tree-sha1 = "18e8f4d1426e965c7b532ddd260599e1510d26ce"
-uuid = "4b34888f-f399-49d4-9bb3-47ed5cae4e65"
-version = "1.0.0"
 
 [[deps.Qt5Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
@@ -2179,12 +1276,6 @@ deps = ["Random", "RandomNumbers"]
 git-tree-sha1 = "7a1a306b72cfa60634f03a911405f4e64d1b718b"
 uuid = "74087812-796a-5b5d-8853-05524746bad3"
 version = "1.6.0"
-
-[[deps.RandomExtensions]]
-deps = ["Random", "SparseArrays"]
-git-tree-sha1 = "062986376ce6d394b23d5d90f01d81426113a3c9"
-uuid = "fb686558-2515-59ef-acaa-46db3789a887"
-version = "0.4.3"
 
 [[deps.RandomNumbers]]
 deps = ["Random", "Requires"]
@@ -2220,12 +1311,6 @@ git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
 version = "1.2.2"
 
-[[deps.Referenceables]]
-deps = ["Adapt"]
-git-tree-sha1 = "e681d3bfa49cd46c3c161505caddf20f0e62aaa9"
-uuid = "42d2dcc6-99eb-4e98-b66c-637b7d73030e"
-version = "0.1.2"
-
 [[deps.RelocatableFolders]]
 deps = ["SHA", "Scratch"]
 git-tree-sha1 = "22c5201127d7b243b9ee1de3b43c408879dff60f"
@@ -2258,15 +1343,9 @@ version = "0.3.0+0"
 
 [[deps.Roots]]
 deps = ["CommonSolve", "Printf", "Setfield"]
-git-tree-sha1 = "90a03cebb786c568d3c1f0fb2f71dcb26115e13e"
+git-tree-sha1 = "b3fb8294be9d311c9b3fa8df2f1f31c93d40340a"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "2.0.3"
-
-[[deps.RuntimeGeneratedFunctions]]
-deps = ["ExprTools", "SHA", "Serialization"]
-git-tree-sha1 = "cdc1e4278e91a6ad530770ebb327f9ed83cf10c4"
-uuid = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
-version = "0.5.3"
+version = "2.0.4"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
@@ -2305,10 +1384,10 @@ version = "1.1.1"
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [[deps.Setfield]]
-deps = ["ConstructionBase", "Future", "MacroTools", "Requires"]
-git-tree-sha1 = "38d88503f695eb0301479bc9b0d4320b378bafe5"
+deps = ["ConstructionBase", "Future", "MacroTools", "StaticArraysCore"]
+git-tree-sha1 = "e2cc6d8c88613c05e1defb55170bf5ff211fbeac"
 uuid = "efcf1570-3423-57d1-acb7-fd33fddbac46"
-version = "0.8.2"
+version = "1.1.1"
 
 [[deps.SharedArrays]]
 deps = ["Distributed", "Mmap", "Random", "Serialization"]
@@ -2330,12 +1409,6 @@ deps = ["InteractiveUtils", "MacroTools"]
 git-tree-sha1 = "5d7e3f4e11935503d3ecaf7186eac40602e7d231"
 uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
 version = "0.9.4"
-
-[[deps.Sixel]]
-deps = ["Dates", "FileIO", "ImageCore", "IndirectArrays", "OffsetArrays", "REPL", "libsixel_jll"]
-git-tree-sha1 = "8fb59825be681d451c246a795117f317ecbcaa28"
-uuid = "45858cf5-a6b0-47a3-bbea-62219f50df47"
-version = "0.1.2"
 
 [[deps.SnoopPrecompile]]
 git-tree-sha1 = "f604441450a3c0569830946e5b33b78c928e1a85"
@@ -2367,18 +1440,6 @@ git-tree-sha1 = "d75bda01f8c31ebb72df80a46c88b25d1c79c56d"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "2.1.7"
 
-[[deps.SplittablesBase]]
-deps = ["Setfield", "Test"]
-git-tree-sha1 = "39c9f91521de844bad65049efd4f9223e7ed43f9"
-uuid = "171d559e-b47b-412a-8079-5efa626c420e"
-version = "0.1.14"
-
-[[deps.StackViews]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "46e589465204cd0c08b4bd97385e4fa79a0c770c"
-uuid = "cae243ae-269e-4f55-b966-ac2d0dc13c15"
-version = "0.1.1"
-
 [[deps.Static]]
 deps = ["IfElse"]
 git-tree-sha1 = "de4f0a4f049a4c87e4948c04acff37baf1be01a6"
@@ -2387,14 +1448,14 @@ version = "0.7.7"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "StaticArraysCore", "Statistics"]
-git-tree-sha1 = "efa8acd030667776248eabb054b1836ac81d92f0"
+git-tree-sha1 = "2189eb2c1f25cb3f43e5807f26aa864052e50c17"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.5.7"
+version = "1.5.8"
 
 [[deps.StaticArraysCore]]
-git-tree-sha1 = "ec2bd695e905a3c755b33026954b119ea17f2d22"
+git-tree-sha1 = "6b7ba252635a5eff6a0b0664a41ee140a1c9e72a"
 uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-version = "1.3.0"
+version = "1.4.0"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2457,18 +1518,6 @@ git-tree-sha1 = "04777432d74ec5bc91ca047c9e0e0fd7f81acdb6"
 uuid = "fb77eaff-e24c-56d4-86b1-d163f2edb164"
 version = "5.2.1+0"
 
-[[deps.SymbolicUtils]]
-deps = ["AbstractTrees", "Bijections", "ChainRulesCore", "Combinatorics", "ConstructionBase", "DataStructures", "DocStringExtensions", "DynamicPolynomials", "IfElse", "LabelledArrays", "LinearAlgebra", "Metatheory", "MultivariatePolynomials", "NaNMath", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "TermInterface", "TimerOutputs"]
-git-tree-sha1 = "027b43d312f6d52187bb16c2d4f0588ddb8c4bb2"
-uuid = "d1185830-fcd6-423d-90d6-eec64667417b"
-version = "0.19.11"
-
-[[deps.Symbolics]]
-deps = ["ArrayInterfaceCore", "ConstructionBase", "DataStructures", "DiffRules", "Distributions", "DocStringExtensions", "DomainSets", "Groebner", "IfElse", "Latexify", "Libdl", "LinearAlgebra", "MacroTools", "Markdown", "Metatheory", "NaNMath", "RecipesBase", "Reexport", "Requires", "RuntimeGeneratedFunctions", "SciMLBase", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "SymbolicUtils", "TermInterface", "TreeViews"]
-git-tree-sha1 = "873596ee5c98f913bcb2cbb2dc779d815c5aeb86"
-uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-version = "4.10.4"
-
 [[deps.TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
@@ -2497,11 +1546,6 @@ git-tree-sha1 = "1feb45f88d133a655e001435632f019a9a1bcdb6"
 uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
 version = "0.1.1"
 
-[[deps.TermInterface]]
-git-tree-sha1 = "7aa601f12708243987b88d1b453541a75e3d8c7a"
-uuid = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
-version = "0.2.3"
-
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -2512,35 +1556,11 @@ git-tree-sha1 = "f8629df51cab659d70d2e5618a430b4d3f37f2c3"
 uuid = "8290d209-cae3-49c0-8002-c8c24d57dab5"
 version = "0.5.0"
 
-[[deps.ThreadsX]]
-deps = ["ArgCheck", "BangBang", "ConstructionBase", "InitialValues", "MicroCollections", "Referenceables", "Setfield", "SplittablesBase", "Transducers"]
-git-tree-sha1 = "d223de97c948636a4f34d1f84d92fd7602dc555b"
-uuid = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
-version = "0.1.10"
-
-[[deps.TiffImages]]
-deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
-git-tree-sha1 = "70e6d2da9210371c927176cb7a56d41ef1260db7"
-uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
-version = "0.6.1"
-
-[[deps.TimerOutputs]]
-deps = ["ExprTools", "Printf"]
-git-tree-sha1 = "9dfcb767e17b0849d6aaf85997c98a5aea292513"
-uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-version = "0.5.21"
-
 [[deps.TranscodingStreams]]
 deps = ["Random", "Test"]
 git-tree-sha1 = "8a75929dcd3c38611db2f8d08546decb514fcadf"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.9"
-
-[[deps.Transducers]]
-deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "Setfield", "SplittablesBase", "Tables"]
-git-tree-sha1 = "c76399a3bbe6f5a88faa33c8f8a65aa631d95013"
-uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
-version = "0.4.73"
 
 [[deps.TreeViews]]
 deps = ["Test"]
@@ -2550,9 +1570,9 @@ version = "0.3.0"
 
 [[deps.TriangularSolve]]
 deps = ["CloseOpenIntervals", "IfElse", "LayoutPointers", "LinearAlgebra", "LoopVectorization", "Polyester", "SnoopPrecompile", "Static", "VectorizationBase"]
-git-tree-sha1 = "8987cf4a0f8d6c375e4ab1438a048e0a185151e4"
+git-tree-sha1 = "fdddcf6b2c7751cd97de69c18157aacc18fbc660"
 uuid = "d5829a12-d9aa-46ab-831f-fb7c9ab06edf"
-version = "0.1.13"
+version = "0.1.14"
 
 [[deps.Tricks]]
 git-tree-sha1 = "6bac775f2d42a611cdfcd1fb217ee719630c4175"
@@ -2795,12 +1815,6 @@ git-tree-sha1 = "94d180a6d2b5e55e447e2d27a29ed04fe79eb30c"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
 version = "1.6.38+0"
 
-[[deps.libsixel_jll]]
-deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Pkg", "libpng_jll"]
-git-tree-sha1 = "d4f63314c8aa1e48cd22aa0c17ed76cd1ae48c3c"
-uuid = "075b6546-f08a-558a-be8f-8157d0f608a5"
-version = "1.10.3+0"
-
 [[deps.libvorbis_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Ogg_jll", "Pkg"]
 git-tree-sha1 = "b910cb81ef3fe6e78bf6acee440bda86fd6ae00c"
@@ -2837,61 +1851,48 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
-# ╟─8db8b95a-8b24-4c67-a059-576e6f410abe
-# ╠═4bb2ee6a-33b0-11ed-332d-0d8beade3446
-# ╠═fb59bdca-9608-44ec-aae4-acb28576a7a4
-# ╠═afeedfcb-96ac-4c31-b070-a16c078e077d
-# ╟─f1f219be-4830-4cb8-b943-b829487683b1
-# ╟─99e4b8c8-8e50-4ebe-8737-ce4dbaf20d3e
-# ╠═beb9d7f6-cca9-4e71-a1ae-7026f8fe75ee
-# ╟─54d4bc16-c0a3-47d8-9f5a-e67c0f1c7973
-# ╠═afe3715a-05d1-4a9d-98f6-d91a324529c6
-# ╠═3c5250ac-d8b9-4ece-b982-397157ffe8f4
-# ╟─e6bb1be6-070d-4bd2-9928-eadc59d4db74
-# ╠═e0c4d3f0-2d88-48f7-90d6-6ced5446735e
-# ╠═c0da7e7b-0352-47f6-b833-e932c260229c
-# ╠═6c78f559-9948-4f9b-9230-8865b8489900
-# ╟─610d728a-ee78-4015-ad68-5629b3c4d38c
-# ╟─884d4535-a599-48e7-ba7e-5603ca3d4dd7
-# ╟─31ba8f34-593a-48dd-8abb-cda52acfbb4d
-# ╠═c9b1ff21-67b8-4216-b8d3-7950385e1813
-# ╠═bea9992d-1291-416f-becc-ed252de0f2eb
-# ╠═59c08b1f-26b4-4767-a564-7c19260ee9a3
-# ╠═a82e6fc8-fa79-4e3f-8ebe-4ff047b23aa2
-# ╟─e8c988b3-d7ef-4abc-ad20-f732d3c90584
-# ╟─df6267a8-c1a4-4483-b245-174c6e9663ef
-# ╠═d282cc3b-f00f-41e1-8837-f6c607ce2e5b
-# ╠═5113cb23-dc4a-4305-9b18-e32713c905ba
-# ╟─7a27d831-be8a-498d-9365-f86cce2d551c
-# ╟─6f5aea21-8573-4dad-bb1e-102dfc84b5e5
-# ╟─e7b25d1f-8c65-4dd1-8bc9-9214591e8532
-# ╟─ad1fe7b0-8062-494f-94ce-7b7997e65f84
-# ╟─d0d7533a-aede-4c08-a0a9-2c06b123addd
-# ╟─8c2e13ae-7d65-47cb-b77c-2ccaeb74f75f
-# ╟─ba9d5641-e058-4136-9291-ab8da9ba69f7
-# ╟─9b82f67a-72fe-458d-9b01-6aee776785de
-# ╠═1f5f70db-7c18-48f1-b98c-66f98cf81892
-# ╠═bf0e8915-8099-43b6-b30b-db641323cbd4
-# ╠═6cedb67b-d323-4e11-b674-fb5badc1a1d2
-# ╠═82e8d792-3c14-458c-b329-59d39718d8ba
-# ╠═8dfc1635-378d-40a6-83bb-4bf6815e9874
-# ╠═ff5e60ef-535e-4ef0-8b15-6432dc411587
-# ╠═49bd17e7-a9d4-4dde-a364-efb488892e8a
-# ╟─255efa49-81e8-4d71-8a27-5a338e0542c6
-# ╟─e20c093e-40e6-47c8-9b3e-a3390cd37caf
-# ╠═339c45cf-5093-4887-8a89-308c46e29cb1
-# ╟─3ec8ef9a-1191-48cf-a1bc-71f62caf8037
-# ╟─d6ce2609-0f49-4e81-a739-61d732faf063
-# ╠═0a415f9c-2297-4bfb-8d2c-43c05d1518d1
-# ╠═025dd87d-7a7c-461a-afcb-25e1f687723d
-# ╟─5d0aa79e-6fbe-4b6b-a7bd-f80b96aa7a42
-# ╠═3a49fc54-f15c-4dad-8c18-de512c98cc90
-# ╟─e77192f2-3e24-4b5f-b18f-a2fd1e1168ff
-# ╠═9297c633-5824-49b0-858e-7edbfec4bacc
-# ╠═57512a0e-fd6f-494e-8366-35c4e4692d73
-# ╟─705712ed-84af-4155-a413-b29350f53972
-# ╠═a4f7e5f8-4d3d-4df0-afe5-b3f29b2ee7ac
-# ╠═52acb5d7-0672-4b41-af31-315e3fc84679
-# ╟─a3ffdd59-4649-403a-bcfe-81af49c50b23
+# ╠═15d28622-3c30-11ed-1cc3-9d37095ea6ba
+# ╟─a27f868f-7c0e-4c24-b24a-7ffe22891f1e
+# ╠═3e8ce332-3106-410a-8915-f96ccafebe2e
+# ╠═94ca22e9-56fd-43db-a968-099fd4f89675
+# ╟─9d3175ee-89f8-454e-977c-11577db9c9fe
+# ╠═4ee98e63-738e-426e-a9b3-3d2acb166f22
+# ╠═7c3718a9-6a84-4448-bd4c-d24e7ebe6e77
+# ╟─2e5b3464-d44b-4a93-9fed-92d80138f74c
+# ╠═f2518679-e5dc-4fa2-85ef-4749d137b0da
+# ╠═cf6477f4-a9ae-467c-9ea3-1c97d188295e
+# ╟─ddde1c06-ed1f-4c37-89d2-9a7500b1a029
+# ╠═b845ae4b-83c0-48bf-b9a6-bbd6f2f55ae9
+# ╠═1933a3da-d578-4b4c-86fc-58c4b1c2a666
+# ╟─6fb5626f-91d8-49b4-a352-ef6f6cb72584
+# ╠═768afbb7-6c44-4334-bc2e-c94226d5d080
+# ╠═a91f4c7d-34ec-42d7-acde-c6442cfc7aa0
+# ╟─ae009636-4add-4724-8dfe-156c27f28202
+# ╠═ebff8644-4aa3-43a5-aedc-719a13dad41d
+# ╠═ca986c88-d8c3-4bd1-9df8-9c20e663d1b7
+# ╟─8f4c22e9-5117-4d64-b0ba-16943733e1c6
+# ╠═16cc7433-d69b-4586-a59b-6b9088e670dd
+# ╠═60751c56-0fe8-4bba-9f17-1ea9d15975da
+# ╟─a9f70e8f-5bad-4ce2-89b4-e465a0ea852c
+# ╠═c3fe8e25-8232-4268-8c6d-cddc9bf3058c
+# ╠═5ac1c394-d60a-486a-9834-2b447b55b375
+# ╟─55ded8a7-efac-4adf-889f-700e10a08c47
+# ╠═68218675-c872-43ae-8254-fc90ccb1ac1f
+# ╠═f4164880-2ee5-4cee-b659-415d6f5052f8
+# ╟─f965185d-2620-45b9-bf57-b8f5f6361044
+# ╠═f3dcbc6e-217c-4203-8161-e438d8c75f15
+# ╠═aaff6049-cfb9-4e46-a47d-bf7c2f6022db
+# ╠═8214d6e1-686c-494a-a481-8b72cf9ac514
+# ╟─752bd99d-eaed-49e5-970b-645d90c26d43
+# ╟─27faf37f-123c-4ac5-ae70-15b030004d87
+# ╠═fdff8533-1b06-4f3e-b5e0-59808cb3e0ae
+# ╟─a32f4d3d-70b5-4bec-81f2-6daf51f815c2
+# ╠═0a50dd1f-c91a-4ffb-950e-f56e6ef37a99
+# ╟─4c425e8d-8d35-41b6-8b6a-7d99f2bb6ba1
+# ╠═1e4dcd5a-31e1-4cd0-85c8-b0884f360fd8
+# ╟─e31cd051-9d26-495a-b69b-f1472039b14d
+# ╠═c6681502-55c1-4bae-a3da-abd1acb4a810
+# ╟─c550f57b-73f6-45f3-ba5f-c4e5ac3a7658
+# ╠═c22bc1e9-7884-4a83-b216-e2baa15d9302
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
