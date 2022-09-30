@@ -728,6 +728,9 @@ md"""
 ##### 5c. In the linearized system, propagate these initial variations for one revolution around the equilibrium point. (Hint: Recall that for an oscillatory mode with eigenvalue 𝜆 = 𝑖𝜔, the period of oscillation is 𝑃 = 2𝜋/𝜔.) Then, calculate the associated initial state vectors in the rotating frame and relative to the barycenter as 𝑥̅) = [𝑥, + 𝜉0, 𝑦, + 𝜂0, 𝑧,, 𝑥̇, + 𝜉̇0, 𝑦̇, + 𝜂̇0, 𝑧̇, ]. Propagate these initial conditions for the same time interval but in the nonlinear CR3BP. For each type of orbit, plot the two trajectories associated with the same initial variation on the same figure and discuss the difference between them; plot the trajectories associated with short period and long period motion on separate figures.
 """
 
+# ╔═╡ 776218e9-033d-4344-94c4-312f3a785d1d
+plotly()
+
 # ╔═╡ 9297c633-5824-49b0-858e-7edbfec4bacc
 begin
 	## short period
@@ -1303,10 +1306,10 @@ uuid = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 version = "0.4.1"
 
 [[deps.FFMPEG_jll]]
-deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "Pkg", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
-git-tree-sha1 = "ccd479984c7838684b3ac204b716c89955c76623"
+deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Pkg", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
+git-tree-sha1 = "74faea50c1d007c85837327f6775bea60b5492dd"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
-version = "4.4.2+0"
+version = "4.4.2+2"
 
 [[deps.FastBroadcast]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "LinearAlgebra", "Polyester", "Static", "StrideArraysCore"]
@@ -2006,6 +2009,11 @@ deps = ["Adapt", "ArrayInterface", "ArrayInterfaceGPUArrays", "ArrayInterfaceSta
 git-tree-sha1 = "68ea6b12e2ef96c350b6a329613fd1bb9de1f1e0"
 uuid = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 version = "6.27.1"
+
+[[deps.PCRE2_jll]]
+deps = ["Artifacts", "Libdl"]
+uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
+version = "10.40.0+0"
 
 [[deps.PCRE_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2887,6 +2895,7 @@ version = "1.4.1+0"
 # ╟─5d0aa79e-6fbe-4b6b-a7bd-f80b96aa7a42
 # ╠═3a49fc54-f15c-4dad-8c18-de512c98cc90
 # ╟─e77192f2-3e24-4b5f-b18f-a2fd1e1168ff
+# ╠═776218e9-033d-4344-94c4-312f3a785d1d
 # ╠═9297c633-5824-49b0-858e-7edbfec4bacc
 # ╠═57512a0e-fd6f-494e-8366-35c4e4692d73
 # ╟─705712ed-84af-4155-a413-b29350f53972

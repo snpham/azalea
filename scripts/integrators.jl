@@ -5,8 +5,9 @@ begin
 	using LinearAlgebra
 	using Plots
 	using PlutoUI
+    using Unitful
 
-	include("../helpers/propagation.jl")
+	include("../helpers/constants.jl")
 
     # compute masses from GM
     m_earth = gm_earth / G_univ
@@ -66,7 +67,7 @@ function cr3bp_stm(dx, x, μ, t)
     dx[7:42] = 𝚽_dot'
 
     # if convert back to matrix for (easy element access)
-    # dx = reshape(dx, 7,6)'
+    dx = reshape(dx, 7,6)'
 
 end
 
@@ -114,20 +115,21 @@ if abspath(PROGRAM_FILE) == @__FILE__
     # setting up solver
     prob = ODEProblem(cr3bp_stm, X0, tspan, μ_em)
     sol = solve(prob, Tsit5(), reltol=1e-12, abstol=1e-12, maxiters=1e6)
+    plotlyjs()
+    # 3d plot in earth-moon rotating frame
+    p = plot(sol[1,:], sol[2,:], sol[3,:], label="trajectory", title=" i.c. #1 (e-m rotating frame)", 
+        xlabel="x [-]", ylabel="y [-]", zlabel="z [-]", layout = 2, aspect_ratio = 1)
     
-    # # 3d plot in earth-moon rotating frame
-    # plot(sol[1,:], sol[2,:], sol[3,:], label="trajectory", title=" i.c. #1 (e-m rotating frame)", 
-    #     xlabel="x [-]", ylabel="y [-]", zlabel="z [-]", layout = 2, aspect_ratio = 1)
-    
-    # # adding the moon
-    # scatter!([1-mu_earthmoon],[0], [0], color="gray", markersize = 4, label="m2: moon")
+    # adding the moon
+    scatter!([1-μ_em],[0], [0], color="gray", markersize = 4, label="m2: moon")
 
-    # # 2d plot in earth-moon rotating frame
-    # plot!(sol[1,:], sol[2,:], label="trajectory", title="x-y plane view", 
-    #     xlabel="x [-]", ylabel="y [-]", subplot=2, aspect_ratio = 1)
+    # 2d plot in earth-moon rotating frame
+    plot!(sol[1,:], sol[2,:], label="trajectory", title="x-y plane view", 
+        xlabel="x [-]", ylabel="y [-]", subplot=2, aspect_ratio = 1)
     
-    # # adding the moon
-    # scatter!([1-mu_earthmoon],[0], color="gray", markersize = 4, label="m2: moon", subplot=2)
+    # adding the moon
+    scatter!([1-μ_em],[0], color="gray", markersize = 4, label="m2: moon", subplot=2)
 
+    display(p)
 end
 

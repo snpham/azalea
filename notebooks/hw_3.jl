@@ -12,23 +12,22 @@ begin
 	using LinearAlgebra
 	using Plots
 	using PlutoUI
-	# include("../helpers/constants.jl")
+    using Unitful
+	plotly()
+	
+	include("../helpers/constants.jl")
 
-	G_univ = 6.67408e-20 # km3/(kg)
-
-	# earth
-	sma_earth_wrtsun = 149598023 # km
-	ecc_earth_wrtsun = 0.016708617
-	
-	# moon
-	sma_moon_wrtearth = 384400 # km
-	ecc_moon_wrtearth = 0.05490
-	
-	
-	# GM [km3/s2]
-	gm_sun = 132712440041.93938
-	gm_earth = 398600.435436
-	gm_moon = 4902.800066
+    # compute masses from GM
+    m_earth = gm_earth / G_univ
+    m_moon = gm_moon / G_univ
+    m_sun = gm_sun / G_univ
+    
+    ## earth-moon
+    # characteristic mass
+    m_star_em = m_earth + m_moon
+    μ_em = m_moon / m_star_em
+    M2_em_nd = μ_em
+    M1_em_nd = 1 - μ_em
 end
 
 # ╔═╡ a27f868f-7c0e-4c24-b24a-7ffe22891f1e
@@ -38,10 +37,90 @@ Write a script to simultaneously numerically integrate the state vector and the 
 """
 
 # ╔═╡ 3e8ce332-3106-410a-8915-f96ccafebe2e
+function crtbp_stm(dx, x, μ, t)
+	"""
+	:param x: 1D vector [state, stm]
+	"""
 
+    # compute positions
+    r1 = sqrt((x[1]+μ)^2 + x[2]^2 + x[3]^2)
+    r2 = sqrt((x[1]-1+μ)^2 + x[2]^2 + x[3]^2)
+
+    # compute CR3BP
+    dx[1] = x[4]
+    dx[2] = x[5]
+    dx[3] = x[6]
+    dx[4] = 2*x[5] + x[1] - (1-μ)*(x[1]+μ)/r1^3 - (μ*(x[1]-1+μ))/r2^3
+    dx[5] = -2*x[4] + x[2] - (1-μ)*x[2]/r1^3 - μ*x[2]/r2^3
+    dx[6] = -(1-μ)*x[3]/r1^3 - μ*x[3]/r2^3
+
+    # compute U matrix -> psuedo-potential 2nd derivatives
+    Uxx = 1 - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*(x[1]+μ)^2/r1^5 + 3*μ*(x[1]-1+μ)^2/r2^5
+    Uxy = 3*(1-μ)*(x[1]+μ)*x[2]/r1^5 + 3*μ*(x[1]-1+μ)*x[2]/r2^5
+    Uxz = 3*(1-μ)*(x[1]+μ)*x[3]/r1^5 + 3*μ*(x[1]-1+μ)*x[3]/r2^5
+    Uyx = Uxy
+    Uyy = 1 - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*x[2]^2/r1^5 + 3*μ*x[2]^2/r2^5
+    Uyz = 3*(1-μ)*x[2]*x[3]/r1^5 + 3*μ*x[2]*x[3]/r2^5
+    Uzx = Uxz
+    Uzy = Uyz
+    Uzz = - (1-μ)/r1^3 - μ/r2^3 + 3*(1-μ)*x[3]^2/r1^5 + 3*μ*x[3]^2/r2^5
+
+    # construct A matrix (jacobian of the state vector)
+    A = [ 0.0  0.0  0.0  1.0  0.0  0.0;
+          0.0  0.0  0.0  0.0  1.0  0.0;
+          0.0  0.0  0.0  0.0  0.0  1.0;
+          Uxx  Uxy  Uxz  0.0  2.0  0.0; 
+          Uyx  Uyy  Uyz -2.0  0.0  0.0;
+          Uzx  Uzy  Uzz  0.0  0.0  0.0]
+
+    # get phi matrix (retransposing to normal shape)
+    𝚽 = reshape(x[7:42], 6, 6)'
+
+    # # compute 𝚽_dot
+    𝚽_dot = A * 𝚽
+    dx[7:42] = 𝚽_dot'
+
+end
 
 # ╔═╡ 94ca22e9-56fd-43db-a968-099fd4f89675
+begin
+	# initial condition 2
+	x_bar = [0.98, 0, 0, 0, 1.2, 0]
+	
+	# at time t_0, the initial condition for the STM is the I matrix
+	𝚽_0 = Matrix(1.0I, 6, 6)
+	
+	# input is a flattened matrix (w/ state in first row, STM in rows 2-7)
+	X0 = vcat(x_bar', 𝚽_0)
+	X0 = reshape(X0', 1, 42)
+	# X0[7:7:42]
+	
+	# 2 nondimensional units
+	tspan = (0.0,2.0)
+	
+	# setting up solver
+	prob = ODEProblem(crtbp_stm, X0, tspan, μ_em)
+	sol = solve(prob, Tsit5(), reltol=1e-12, abstol=1e-12, maxiters=1e6)
 
+	x = [sol[i]'[1] for i ∈ 1:length(sol)]
+	y = [sol[i]'[2] for i ∈ 1:length(sol)]
+	z = [sol[i]'[3] for i ∈ 1:length(sol)]
+
+	# 3d plot in earth-moonrotating frame
+	plot(x, y, z, label="trajectory", title=" i.c. #1 (e-m rotating frame)", 
+		xlabel="x [-]", ylabel="y [-]", zlabel="z [-]", layout = 2, aspect_ratio = 1)
+	
+	# adding the moon
+	scatter!([1-μ_em],[0], [0], color="gray", markersize = 4, label="m2: moon")
+	
+	# 2d plot in earth-moon rotating frame
+	plot!(x, y, label="trajectory", title="x-y plane view", 
+		xlabel="x [-]", ylabel="y [-]", subplot=2, aspect_ratio = 1)
+	
+	# adding the moon
+	scatter!([1-μ_em],[0], color="gray", markersize = 4, label="m2: moon", subplot=2)
+	
+end
 
 # ╔═╡ 9d3175ee-89f8-454e-977c-11577db9c9fe
 md"""
@@ -214,6 +293,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 DataFrames = "~1.3.6"
@@ -221,6 +301,7 @@ DifferentialEquations = "~7.4.0"
 Plots = "~1.33.0"
 PlutoUI = "~0.7.43"
 Roots = "~2.0.4"
+Unitful = "~1.12.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -229,7 +310,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0"
 manifest_format = "2.0"
-project_hash = "642ebabbf6b6af9f22a988da368e811f4f36c5ee"
+project_hash = "b02a3d85ab331ba1a0b6f1f12f283fd5836d5568"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -576,9 +657,9 @@ version = "0.4.1"
 
 [[deps.FFMPEG_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Pkg", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
-git-tree-sha1 = "40c63abc94311b4e2bff4cd9a6a59bda1873c95b"
+git-tree-sha1 = "74faea50c1d007c85837327f6775bea60b5492dd"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
-version = "4.4.2+1"
+version = "4.4.2+2"
 
 [[deps.FastBroadcast]]
 deps = ["ArrayInterface", "ArrayInterfaceCore", "LinearAlgebra", "Polyester", "Static", "StrideArraysCore"]
@@ -1606,6 +1687,12 @@ deps = ["REPL"]
 git-tree-sha1 = "53915e50200959667e78a92a418594b428dffddf"
 uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
+
+[[deps.Unitful]]
+deps = ["ConstructionBase", "Dates", "LinearAlgebra", "Random"]
+git-tree-sha1 = "d57a4ed70b6f9ff1da6719f5f2713706d57e0d66"
+uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
+version = "1.12.0"
 
 [[deps.Unzip]]
 git-tree-sha1 = "ca0969166a028236229f63514992fc073799bb78"
